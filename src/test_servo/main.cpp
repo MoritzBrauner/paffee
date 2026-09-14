@@ -10,7 +10,7 @@
 // dieser Test im konservativen Bereich 1000-2000 us. Wie du ihn sauber
 // ausweitest, steht unten bei PULSE_MIN_US.
 
-constexpr int SERVO_PIN = 18;   // freier GPIO, kein Strapping-Pin
+constexpr int SERVO_PIN = 5;   // freier GPIO, kein Strapping-Pin
 
 // Der S3003 ist ein analoger Standard-Servo: 50 Hz Rahmen, Neutral bei ~1500 us.
 constexpr int PULSE_MID_US = 1500;

@@ -1,90 +1,83 @@
 #include <Arduino.h>
+#include <ESP32Servo.h>
 
-// Drehzahlmessung per Lochscheibe + Lichtschranke (ESP32).
-// Die Flanken der Lichtschranke werden per Hardware-Interrupt erfasst,
-// die Ausgabe passiert entkoppelt davon in loop().
-
-// ---------------------------------------------------------------- Konfiguration
-
-// GPIO2 ist auf dem ESP32 ein Strapping-Pin und haengt auf vielen DevKits an
-// der Onboard-LED -> der interne Pull-up kommt gegen die LED nicht an, und
-// beim Flashen kann ein High-Pegel den Download-Mode stoeren.
-// GPIO4 ist unkritisch. Nicht nehmen: 0, 2, 6-11, 12, 15 und 34-39
-// (34-39 sind reine Eingaenge OHNE internen Pull-up).
-constexpr int      SENSOR_PIN         = 4;
-
-constexpr int      SLOTS_PER_REV      = 32;      // Schlitze in der Lochscheibe
-constexpr uint32_t MIN_PULSE_US       = 200;     // Stoerimpulse kuerzer als das ignorieren
-constexpr uint32_t STANDSTILL_US      = 500000;  // keine Flanke seit 0,5 s -> Drehzahl 0
-constexpr uint32_t PRINT_INTERVAL_MS  = 250;
-
-// ---------------------------------------------------------------- ISR <-> loop
-
-// Alles, was ISR und loop() gemeinsam anfassen, muss volatile sein, sonst
-// optimiert der Compiler die Zugriffe weg.
-volatile uint32_t g_lastEdgeUs = 0;  // Zeitstempel der letzten gueltigen Flanke
-volatile uint32_t g_periodUs   = 0;  // Dauer einer Schlitz-Periode
-volatile uint32_t g_pulseCount = 0;  // gezaehlte Flanken seit Start
-
-// Der ESP32 hat zwei Kerne: der Spinlock sorgt dafuer, dass loop() die drei
-// Werte als zusammengehoerigen Schnappschuss liest.
-portMUX_TYPE g_mux = portMUX_INITIALIZER_UNLOCKED;
-
-// IRAM_ATTR: die ISR muss im RAM liegen, nicht im Flash.
-void IRAM_ATTR onSensorEdge() {
-  const uint32_t now = micros();
-  const uint32_t dt  = now - g_lastEdgeUs;  // unsigned -> Ueberlauf rechnet sich raus
-
-  if (dt < MIN_PULSE_US) {
-    return;  // Prellen / Stoerimpuls
+struct Lichtschranke {
+  int pin; 
+  volatile unsigned long lastTickTimestampMicros = 0; 
+  volatile unsigned long lastPeriodMicros = 0; 
+  //float rpm = 0; 
+  float getRpm() {
+    unsigned long microsNow = micros(); 
+    if (microsNow - this->lastTickTimestampMicros > 1000 * 1000) return 0.0f;  
+    return this->lastPeriodMicros == 0 ? 0 : 1000.0f * 1000 * 60 / this->lastPeriodMicros / 32; 
   }
+};
 
-  portENTER_CRITICAL_ISR(&g_mux);
-  g_lastEdgeUs = now;
-  g_periodUs   = dt;
-  g_pulseCount++;
-  portEXIT_CRITICAL_ISR(&g_mux);
+struct Getriebe {
+  Lichtschranke eingang; 
+  Lichtschranke ausgang; 
+};
+Getriebe links; 
+
+Getriebe rechts; 
+
+const int PIN_LICHTSCHRANKE_R = 4;
+const int PIN_LICHTSCHRANKE_L = 18;
+
+constexpr int SERVO_PIN = 5; 
+constexpr int PULSE_MID_US = 1500;
+
+Servo servo;
+// volatile = "Compiler, cache diese Variable nicht in einem Register."
+// Ohne volatile sieht loop() die Aenderung aus der ISR unter Umstaenden nie.
+//volatile uint32_t edgeCount = 0;
+
+// Das hier ist die ISR (Interrupt Service Routine).
+// IRAM_ATTR ist ESP32-spezifisch: die Funktion muss im RAM liegen, nicht im Flash.
+void IRAM_ATTR onSensorChange(void *arg) {
+  Lichtschranke *schranke = static_cast<Lichtschranke*>(arg);
+  unsigned long microsNow = micros();
+  //if (microsNow - schranke->lastTickMicros < 200) return; 
+
+ // unsigned long timeSinceLastTick = microsNow - schranke->lastTickMicros; 
+  //Serial.printf("RPM: %f\n", schranke->getRpm(microsNow));
+  // -> Millisekunden -> Sekunden -> Minute / Differenz zum letzten Tick / Anzahl an Perforationen in Scheibe 
+  //schranke->rpm = 1000.0f * 1000 * 60 / timeSinceLastTick / 32; 
+
+  //jetzigen Timerstand für den nächsten Durchgang speichern 
+  schranke->lastPeriodMicros = microsNow - schranke->lastTickTimestampMicros;
+  schranke->lastTickTimestampMicros = microsNow; 
 }
-
-// ---------------------------------------------------------------- setup / loop
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Setup - Start");
-  Serial.println("Program: Paffee");
 
-  pinMode(SENSOR_PIN, INPUT_PULLUP);
+  links.eingang.pin = PIN_LICHTSCHRANKE_L; 
 
-  g_lastEdgeUs = micros();
+  pinMode(PIN_LICHTSCHRANKE_L, INPUT_PULLUP);
 
-  // Nur RISING: eine Flanke pro Schlitz. Damit ist die Messung unabhaengig
-  // davon, ob Schlitz und Steg gleich breit sind.
-  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN), onSensorEdge, RISING);
+  attachInterruptArg(digitalPinToInterrupt(PIN_LICHTSCHRANKE_L), onSensorChange, &links.eingang, RISING);
 
+    ESP32PWM::allocateTimer(0);
+
+  servo.setPeriodHertz(50);  // analoger Servo -> 50 Hz. NICHT hochdrehen.
+
+  // Bewusst weiter aufgezogen als der Sweep-Bereich: attach() begrenzt
+  // writeMicroseconds() hart. So kannst du oben PULSE_MIN/MAX aendern,
+  // ohne hier nachziehen zu muessen.
+  servo.attach(SERVO_PIN, 500, 2500);
+  
   Serial.println("Setup - End");
 }
 
 void loop() {
-  static uint32_t lastPrintMs = 0;
-
-  const uint32_t nowMs = millis();
-  if (nowMs - lastPrintMs < PRINT_INTERVAL_MS) {
-    return;
-  }
-  lastPrintMs = nowMs;
-
-  portENTER_CRITICAL(&g_mux);
-  const uint32_t periodUs = g_periodUs;
-  const uint32_t lastUs   = g_lastEdgeUs;
-  const uint32_t count    = g_pulseCount;
-  portEXIT_CRITICAL(&g_mux);
-
-  // Eine Schlitz-Periode entspricht 1/SLOTS_PER_REV Umdrehung.
-  float rpm = 0.0f;
-  const bool spinning = (periodUs > 0) && ((micros() - lastUs) < STANDSTILL_US);
-  if (spinning) {
-    rpm = 60000000.0f / ((float)periodUs * SLOTS_PER_REV);
-  }
-
-  Serial.printf("revs: %8.2f   rpm: %7.1f\n", (float)count / SLOTS_PER_REV, rpm);
+  //TODO: RPM Berechnung hier rein: ISR wird kürzer, und 0 rpm lässt sich besser rausfinden. 
+  unsigned long microsNow = micros(); 
+  Serial.print("RPM: ");
+  Serial.print(links.eingang.getRpm());
+  Serial.print("   Pin gerade: ");
+  Serial.println(digitalRead(PIN_LICHTSCHRANKE_L));
+servo.writeMicroseconds(PULSE_MID_US);
+  delay(50);
 }
