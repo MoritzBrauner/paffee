@@ -22,12 +22,15 @@ constexpr int PULSE_MID_US = 1500;
 // (950/2050, dann 900/2100, ...) und zuhoeren. Sobald der Servo an einer
 // Endlage brummt, ohne sich weiterzudrehen, ist der Anschlag erreicht
 // -> sofort wieder 50-100 us zurueck und dort belassen.
-constexpr int PULSE_MIN_US = 1000;
-constexpr int PULSE_MAX_US = 2000;
+//constexpr int PULSE_MIN_US = 500  ;
+//constexpr int PULSE_MAX_US = 2500;
+
+constexpr int PULSE_MIN_US = 1500 - 670;
+constexpr int PULSE_MAX_US = 1500 + 670;
 
 constexpr int STEP_US       = 5;    // Schrittweite pro Update
 constexpr int STEP_DELAY_MS = 20;   // Tempo: kleiner = schneller
-constexpr int HOLD_MS       = 700;  // Pause an den Endlagen
+constexpr int HOLD_MS       = 2000;  // Pause an den Endlagen
 
 Servo servo;
 
@@ -78,10 +81,15 @@ void setup() {
 
 void loop() {
   Serial.println("Fahre hoch..");
-  sweepTo(PULSE_MIN_US, PULSE_MAX_US);
+  sweepTo(PULSE_MID_US, PULSE_MAX_US);
   delay(HOLD_MS);
 
   Serial.println("Fahre runter..");
-   sweepTo(PULSE_MAX_US, PULSE_MIN_US);
+  sweepTo(PULSE_MAX_US, PULSE_MIN_US);
   delay(HOLD_MS);
+
+  Serial.println("In Mittelstellung.."); 
+  servo.writeMicroseconds(PULSE_MID_US);
+  delay(HOLD_MS);
+
 }
