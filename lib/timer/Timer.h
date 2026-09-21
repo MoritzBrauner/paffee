@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 class Timer {
-    private:
+    protected:
         unsigned long interval; 
         unsigned long lastTick;  
     public: 
@@ -24,12 +24,15 @@ class StagedTimer: public Timer {
 class SingleUseStagedTimer: public StagedTimer {
     private:
         bool enabled;  
+        bool paused; 
     public:
         SingleUseStagedTimer(unsigned long ms, uint8_t stages, bool enabled = true);
         uint8_t getStage(); 
         void reset(bool start); 
         //void disable(); 
-        bool isEnabled(); 
+        bool isEnabled();
+        void pause();
+        void advance();  
 };
 
 #endif

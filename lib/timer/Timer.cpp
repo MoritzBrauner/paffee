@@ -25,17 +25,13 @@ uint8_t StagedTimer::getStage() {
     return currentStage;  
 }
 
-SingleUseStagedTimer::SingleUseStagedTimer(unsigned long ms, uint8_t stages, bool enabled = true): StagedTimer(ms, stages) {
+SingleUseStagedTimer::SingleUseStagedTimer(unsigned long ms, uint8_t stages, bool enabled): StagedTimer(ms, stages) {
     this->enabled = enabled; 
 }
 
 uint8_t SingleUseStagedTimer::getStage() {
-    if (!enabled) return 0; 
-    return StagedTimer::getStage(); 
-}
-
-uint8_t SingleUseStagedTimer::getStage() {
-    if (!isEnabled()) return 0; 
+    if (!isEnabled()) return 0;
+    if (paused) return currentStage;  
     if (fires()) currentStage ++; 
     if (currentStage > stages) {
         this->enabled = false; 
@@ -46,6 +42,8 @@ uint8_t SingleUseStagedTimer::getStage() {
 }
 
 void SingleUseStagedTimer::reset(bool start) {
+    this->lastTick = millis();
+    this->paused = false;  
     this->currentStage = 1; 
     if (start) this->enabled = true; 
 } 
@@ -53,3 +51,13 @@ void SingleUseStagedTimer::reset(bool start) {
 bool SingleUseStagedTimer::isEnabled() {
     return this->enabled;
 } 
+
+
+void SingleUseStagedTimer::pause() {
+    this->paused = true;
+}
+
+void SingleUseStagedTimer::advance() {
+    this->paused = false; 
+    this->getStage(); 
+}  
