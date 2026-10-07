@@ -52,26 +52,15 @@ enum class Mode {
   Shift,
 };
 
+enum class Direction {
+  Forward, 
+  Backward,
+};
+
 struct RotationSpeeds {
   float input = 0;   
   float output = 0; 
 };
-
-//Periodenmessung. Drehzahl ergibt sich aus dem Interval zwischen den letzten 2 Messungen. 
-//Interrupt-gesteuert.  
-
-//class Drivetrain {
-//    private:
-//        Message* messageFromEngine1; 
-//        Message* messageFromEngone2; 
-//
-//        Message* messageToEngine1;
-//        Message* messageToEngine2;
-//        
-//        uint8_t pin;
-//    public: 
-//
-//};
 
 class Transmission {
   private:
@@ -185,7 +174,9 @@ class Transmission {
     Look for the happiness state: 
       If outPutRPM is above the threshold, request shiftUp via Message 
       If outPutRPM is above the threshold, request shiftDown
-    Execute Shifts with the timer 
+    Implement 2 Modes: 
+      DriveMode -> Motor gets PWM from Remote Control, normal driving
+      ShiftMode -> Motor just tries to RevMatch the output
       */
     void update(uint16_t normalizedPwm) {
         if (!initialized) {
@@ -217,37 +208,37 @@ class Transmission {
             break;
             default:;
           }
-        }
-        else {
-          //if (desiredGear == Gear::First) {
-            switch (shiftTimer.getStage()) {
-              case 1: {
-                //Servo auf Mittelstellung, kurz warten
-                servo.writeMicroseconds(SERVO_NEUTRAL_US);
-              }
-              break;
-              case 2: {
-                shiftTimer.pause();
-                //Transmission im Leerlauf hochdrehen; revmatch
-                float targetGearRatio = desiredGear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND;
-                float targetRPM = getOutPutRpm() * (1/targetGearRatio);
-                //Hier dann in der Liste den PWM-Wert suchen und interpolieren, der zur geforderten Drehzahl passt
-                //Irgendeine Logik noch reinmachen, die den tatsächlichen PWM-Wert überwacht und ggf. korrigiert
-                //nur wenn Die Transmission-RPM angeglichen ist:
-                shiftTimer.advance();
-              }
-              break;
-              case 3: {
-                servo.writeMicroseconds(SERVO_FIRST_US);
-              }
-              break;
-              case 4: {
-                //Schaltvorgang als abgeschlossen markieren
-                currentGear = Gear::First;
-              }
-              break;
-            }
-        }
+        } 
+        //else {
+        //  //if (desiredGear == Gear::First) {
+        //    switch (shiftTimer.getStage()) {
+        //      case 1: {
+        //        //Servo auf Mittelstellung, kurz warten
+        //        servo.writeMicroseconds(SERVO_MIDDLE_US);
+        //      }
+        //      break;
+        //      case 2: {
+        //        shiftTimer.pause();
+        //        //Transmission im Leerlauf hochdrehen; revmatch
+        //        float targetGearRatio = desiredGear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND;
+        //        float targetRPM = getOutPutRpm() * (1/targetGearRatio);
+        //        //Hier dann in der Liste den PWM-Wert suchen und interpolieren, der zur geforderten Drehzahl passt
+        //        //Irgendeine Logik noch reinmachen, die den tatsächlichen PWM-Wert überwacht und ggf. korrigiert
+        //        //nur wenn Die Transmission-RPM angeglichen ist:
+        //        shiftTimer.advance();
+        //      }
+        //      break;
+        //      case 3: {
+        //        servo.writeMicroseconds(SERVO_FIRST_US);
+        //      }
+        //      break;
+        //      case 4: {
+        //        //Schaltvorgang als abgeschlossen markieren
+        //        currentGear = Gear::First;
+        //      }
+        //      break;
+        //    }
+        //}
     }
 }; 
 
@@ -256,10 +247,12 @@ class Drivetrain {
       Transmission leftTrans; 
       Transmission rightTrans; 
 
+      SingleUseStagedTimer shiftTimer; 
 
       Gear currentGear;
       Gear desiredGear;
-      //Servo shiftServo; 
+
+      Servo servo; 
 
       Directive getTransMessages() {
         return Messages(
@@ -275,6 +268,19 @@ class Drivetrain {
       //Calibrate both transesesees
       void calibrate(); 
 
+      void initializeGearShift(Gear gear) {
+        desiredGear = gear; 
+        shiftTimer.reset(true); 
+        leftTrans.setMode(Mode::Shift);
+        rightTrans.setMode(Mode::Shift); 
+      }
+
+      void finalizeShift(Gear gear) {
+        currentGear = gear; 
+        leftTrans.setMode(Mode::Drive);
+        rightTrans.setMode(Mode::Drive); 
+      }
+
       void update(uint8_t stickValueX, uint8_t stickValueY) {
         //Find a way to pass Remote input into the engine (maybe with parameters of update)
         //Handle Turning, set desired PWM for both Motors accordingly 
@@ -287,32 +293,47 @@ class Drivetrain {
         // else -> stay in current gear? -> this state is often reached while turning 
         //Pass down to engines, which gear we are in 
         Directive directive = getTransMessages(); 
-
-        switch (directive) {
+        if (desiredGear == currentGear) {
+          switch (directive) {
           case Directive::ShiftUp: {
-            desiredGear = Gear::Second;
-            //leftTrans.setMode(Mode::Shift);
-            //rightTrans.setMode(Mode::Shift);
+            initializeGearShift(Gear::Second);
           }
           break;
           case Directive::ShiftDown: {
-            desiredGear = Gear::First;
-            //leftTrans.setMode(Mode::q Shift);
-            //rightTrans.setMode(Mode::Shift);
+            initializeGearShift(Gear::First);
           }
           break;
-          default: {
-            //leftTrans.setMode(Mode::Drive);
-            //rightTrans.setMode(Mode::Drive);
-          }
         }
-
-        if (desiredGear != currentGear) {
           //leftTrans.setMode(Mode::Shift);
           //rightTrans.setMode(Mode::Shift);
         } else {
-          //leftTrans.setMode(Mode::Drive);
-          //rightTrans.setMode(Mode::Drive);
+          switch (shiftTimer.getStage()) {
+            case 1: {
+              //Servo auf Mittelstellung, kurz warten 
+              servo.writeMicroseconds(SERVO_MIDDLE_US);
+            } 
+            break; 
+            case 2: {
+              shiftTimer.pause(); 
+              //Motor im Leerlauf hochdrehen; revmatch
+              float targetGearRatio = desiredGear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND; 
+              float targetRPM = links.ausgang.getRpm() * (1/targetGearRatio); 
+              //Hier dann in der Liste den PWM-Wert suchen und interpolieren, der zur geforderten Drehzahl passt  
+              //Irgendeine Logik noch reinmachen, die den tatsächlichen PWM-Wert überwacht und ggf. korrigiert
+              //nur wenn Die Motor-RPM angeglichen ist: 
+              shiftTimer.advance();  
+            }
+            break;  
+            case 3: {
+              servo.writeMicroseconds(SERVO_FIRST_US);
+            }
+            break; 
+            case 4: {
+              //Schaltvorgang als abgeschlossen markieren 
+              currentGear = Gear::First; 
+            }
+            break;  
+          }
         }
       }
 };
