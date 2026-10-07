@@ -20,6 +20,27 @@ enum class Message {
   RequestingShiftDown,
 }; 
 
+enum class Directive {
+  DoNothing, 
+  ShiftUp,
+  ShiftDown, 
+};
+
+struct Messages {
+  Message left;
+  Message right;
+  Messages(Message left, Message right) : left(left), right(right) {}
+  bool areEqual() { return left == right}; 
+  Directive getDirective() {
+    if (!areEqual()) return Directive::DoNothing; 
+    if (left == Message::RequestingShiftUp)
+      return Directive::ShiftUp;
+    if (left == Message::RequestingShiftDown)
+      return Directive::ShiftDown;
+    return Directive::DoNothing;
+  }
+};
+
 enum class Gear {
   First, 
   Second, 
@@ -61,8 +82,7 @@ class Transmission {
 
     Message message;
 
-    Gear desiredGear;
-    Gear currentGear;
+    Mode mode;
 
     uint8_t pin_motorPwm;
     uint8_t pin_motorDirection;
@@ -138,6 +158,10 @@ class Transmission {
       return this->message;
     }
 
+    void setMode(Mode mode) {
+      this->mode = mode; 
+    }
+
     RotationSpeeds getRotionalSpeeds() {
       RotationSpeeds rpms; 
       unsigned long millisNow = millis(); 
@@ -163,7 +187,7 @@ class Transmission {
       If outPutRPM is above the threshold, request shiftDown
     Execute Shifts with the timer 
       */
-    void update() {
+    void update(uint16_t normalizedPwm) {
         if (!initialized) {
             Serial.println("Unable to update. Transmission is not initialized");
             return;
@@ -173,17 +197,19 @@ class Transmission {
             return;
         }
 
+        RotationSpeeds rpms = getRotionalSpeeds(); 
+
         if (currentGear == desiredGear) {
           switch (currentGear) {
             case Gear::First: {
-              if (getRotionalSpeeds().output > 400) {
+              if (rpms.output > 400) {
                 desiredGear = Gear::Second;
                 //shiftTimer.reset(true);
               }
             }
             break;
             case Gear::Second: {
-              if (getRotionalSpeeds().output <= 350) {
+              if (rpms.output <= 350) {
                 desiredGear = Gear::First;
                 //shiftTimer.reset(true);
               }
@@ -227,12 +253,26 @@ class Transmission {
 
 class Drivetrain {
     private: 
-      Transmission leftMotor; 
-      Transmission rightMotor; 
+      Transmission leftTrans; 
+      Transmission rightTrans; 
+
+
+      Gear currentGear;
+      Gear desiredGear;
       //Servo shiftServo; 
 
+      Directive getTransMessages() {
+        return Messages(
+          leftTrans.getMessage(), 
+          rightTrans.getMessage() 
+        ).getDirective();
+      }
+
+
     public: 
+      //Init both transeseses
       void init(); 
+      //Calibrate both transesesees
       void calibrate(); 
 
       void update(uint8_t stickValueX, uint8_t stickValueY) {
@@ -246,6 +286,34 @@ class Drivetrain {
         // If 2x ShiftDown -> ShiftDown 
         // else -> stay in current gear? -> this state is often reached while turning 
         //Pass down to engines, which gear we are in 
+        Directive directive = getTransMessages(); 
+
+        switch (directive) {
+          case Directive::ShiftUp: {
+            desiredGear = Gear::Second;
+            //leftTrans.setMode(Mode::Shift);
+            //rightTrans.setMode(Mode::Shift);
+          }
+          break;
+          case Directive::ShiftDown: {
+            desiredGear = Gear::First;
+            //leftTrans.setMode(Mode::q Shift);
+            //rightTrans.setMode(Mode::Shift);
+          }
+          break;
+          default: {
+            //leftTrans.setMode(Mode::Drive);
+            //rightTrans.setMode(Mode::Drive);
+          }
+        }
+
+        if (desiredGear != currentGear) {
+          //leftTrans.setMode(Mode::Shift);
+          //rightTrans.setMode(Mode::Shift);
+        } else {
+          //leftTrans.setMode(Mode::Drive);
+          //rightTrans.setMode(Mode::Drive);
+        }
       }
 };
 
