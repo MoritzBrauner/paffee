@@ -18,25 +18,29 @@ enum class Message {
   Happy,
   RequestingShiftUp,
   RequestingShiftDown,
+  RevMatchCompleted,
 }; 
 
 enum class Directive {
   DoNothing, 
   ShiftUp,
   ShiftDown, 
+  EngageClutch,  
 };
 
 struct Messages {
   Message left;
   Message right;
   Messages(Message left, Message right) : left(left), right(right) {}
-  bool areEqual() { return left == right}; 
+  bool areEqual() { return (left == right);} 
   Directive getDirective() {
     if (!areEqual()) return Directive::DoNothing; 
     if (left == Message::RequestingShiftUp)
       return Directive::ShiftUp;
     if (left == Message::RequestingShiftDown)
       return Directive::ShiftDown;
+    if (left == Message::RevMatchCompleted)
+      return Directive::EngageClutch;
     return Directive::DoNothing;
   }
 };
@@ -60,6 +64,8 @@ enum class Direction {
 struct RotationSpeeds {
   float input = 0;   
   float output = 0; 
+
+  RotationSpeeds(float input, float output) : input(input), output(output) {}
 };
 
 class Transmission {
@@ -72,6 +78,11 @@ class Transmission {
     Message message;
 
     Mode mode;
+    
+    Gear targetGear = Gear::First;
+    float targetRatio = GEAR_RATIO_FIRST;
+    Gear currentGear = Gear::First;
+    float currentRatio = GEAR_RATIO_FIRST;
 
     uint8_t pin_motorPwm;
     uint8_t pin_motorDirection;
@@ -79,6 +90,7 @@ class Transmission {
     uint8_t pin_photoElectricSpeedSensor; 
     volatile unsigned long lastTickMicros = 0; 
     volatile unsigned long lastPeriodMicros = 0; 
+    float lastMeasuredOutputRpm = 0;
 
     uint8_t pin_hallSensor1; 
     uint8_t pin_hallSensor2; 
@@ -87,10 +99,32 @@ class Transmission {
     const static uint32_t HALL_SAMPLE_INTERVAL_MS = 50;
     ESP32Encoder encoder; 
     int64_t lastCount = 0; 
+    float lastMeasuredInputRpm = 0; 
+
+    //RotationSpeeds rpms;
 
     SingleUseStagedTimer shiftTimer;
     
-    void write(uint8_t pwm, bool direction = true);
+    void write(uint8_t pwm, Direction direction) {
+      ledcWrite(0, pwm); 
+      digitalWrite(pin_motorDirection, direction == Direction::Forward ? HIGH : LOW); 
+    }
+
+    float getTargetPwmByRpm(float rpm) {
+      //Interpolate between calibratedMotorRPMs and their corresponding PWM values 
+      //to find the PWM value that corresponds to the desired RPM 
+      for (int i = 0; i < sizeof(calibratedMotorRPMs); i++) {
+        if (rpm >= calibratedMotorRPMs[i] && rpm <= calibratedMotorRPMs[i+1]) {
+          float pwm1 = i * 100; 
+          float pwm2 = (i+1) * 100; 
+          float rpm1 = calibratedMotorRPMs[i]; 
+          float rpm2 = calibratedMotorRPMs[i+1]; 
+          float pwm = pwm1 + (rpm - rpm1) * (pwm2 - pwm1) / (rpm2 - rpm1); 
+          return pwm; 
+        }
+      }
+      return 0;
+    }
 
     static void IRAM_ATTR onSensorChangeISR(void* arg) {
       static_cast<Transmission*>(arg)->onSensorChange();
@@ -130,13 +164,13 @@ class Transmission {
 
         Serial.println("Transmission calibration started...");
         Serial.println("Transmission Stop");
-        write(0);
+        write(0, Direction::Forward);
         delay(500);
         for (int i = 1; i <= 10; i++) {
-          float rpm = getRotionalSpeeds().input;
+          float rpm = getRotationalSpeeds().input;
           Serial.printf("Measured Motor RPM for Signal %d: %f", (i-1)*100, rpm);
           calibratedMotorRPMs[i-1] = rpm;
-          write(i * 100);
+          write(i * 100, Direction::Forward);
           delay(500);
         }
         this->calibrated = true;
@@ -151,24 +185,56 @@ class Transmission {
       this->mode = mode; 
     }
 
-    RotationSpeeds getRotionalSpeeds() {
-      RotationSpeeds rpms; 
+    void setTargetGear(Gear gear) {
+      this->targetGear = gear; 
+      this->targetRatio = gear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND;
+    }
+
+    void setCurrentGear(Gear gear) {
+      this->currentGear = gear; 
+      this->currentRatio = gear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND;
+    }
+
+    
+
+    //void updateRotationalSpeeds() {
+    //  //RotationSpeeds rpms; 
+    //  unsigned long millisNow = millis(); 
+    //  //input
+    //  if (hallTimer.fires()) {
+    //    long now = encoder.getCount(); 
+    //    long delta = now - lastCount; 
+    //    lastCount = now; 
+    //    rpms.output = (delta * 60000.0f) / (SAMPLE_INTERVAL_MS * countsPerRev);
+    //  }
+    //  //output 
+    //  if ((millisNow * 1000) - lastTickMicros > 1000 * 1000) {
+    //    rpms.input = 0; 
+    //  } else {
+    //    rpms.input = lastPeriodMicros == 0 ? 0 : 1000.0f * 1000 * 60 / lastPeriodMicros / 32; 
+    //  }  
+    //  //return rpms; 
+    //}
+
+    RotationSpeeds getRotationalSpeeds() {
+      //RotationSpeeds rpms(lastMeasuredInputRpm, 0); 
       unsigned long millisNow = millis(); 
       //input
       if (hallTimer.fires()) {
         long now = encoder.getCount(); 
         long delta = now - lastCount; 
         lastCount = now; 
-        rpms.output = (delta * 60000.0f) / (SAMPLE_INTERVAL_MS * countsPerRev);
+        lastMeasuredInputRpm = (delta * 60000.0f) / (SAMPLE_INTERVAL_MS * countsPerRev);
       }
       //output 
       if ((millisNow * 1000) - lastTickMicros > 1000 * 1000) {
-        rpms.input = 0; 
+        lastMeasuredOutputRpm = 0; 
       } else {
-        rpms.input = lastPeriodMicros == 0 ? 0 : 1000.0f * 1000 * 60 / lastPeriodMicros / 32; 
+        lastMeasuredOutputRpm = lastPeriodMicros == 0 ? 0 : 1000.0f * 1000 * 60 / lastPeriodMicros / 32; 
       }  
-      return rpms; 
+      return RotationSpeeds(lastMeasuredInputRpm, lastMeasuredOutputRpm); 
     }
+
 
     /*Get both input and output RPM.
     Look for the happiness state: 
@@ -178,7 +244,7 @@ class Transmission {
       DriveMode -> Motor gets PWM from Remote Control, normal driving
       ShiftMode -> Motor just tries to RevMatch the output
       */
-    void update(uint16_t normalizedPwm) {
+    void update(uint16_t normalizedPwm, Direction direction) {
         if (!initialized) {
             Serial.println("Unable to update. Transmission is not initialized");
             return;
@@ -188,57 +254,41 @@ class Transmission {
             return;
         }
 
-        RotationSpeeds rpms = getRotionalSpeeds(); 
+        //updateRotationalSpeeds();
 
-        if (currentGear == desiredGear) {
+        RotationSpeeds rpms = getRotationalSpeeds();
+
+        if (mode == Mode::Drive) {
+          //Set Motor PWM according to Remote Control Input 
+          write(normalizedPwm, direction);
+          //View Output RPM and decide whether we are happy or not
+          //  if not -> set Message to RequestingShiftUp or RequestingShiftDown
           switch (currentGear) {
             case Gear::First: {
               if (rpms.output > 400) {
-                desiredGear = Gear::Second;
-                //shiftTimer.reset(true);
+                message = Message::RequestingShiftUp;
               }
             }
             break;
             case Gear::Second: {
               if (rpms.output <= 350) {
-                desiredGear = Gear::First;
-                //shiftTimer.reset(true);
+                message = Message::RequestingShiftDown;
               }
             }
             break;
-            default:;
+            default: {
+              message = Message::Happy; // :) 
+            }
+          }
+        } else {
+          //ignore Remote Control Input, just RevMatch the output RPM to the targetGearRatio
+          float targetPwm = getTargetPwmByRpm(rpms.output * (1/targetRatio));
+          write(targetPwm, direction);
+          const uint8_t tolerance = 20;
+          if (rpms.input >= rpms.output * (1/targetRatio) - tolerance && rpms.input <= rpms.output * (1/targetRatio) + tolerance) {
+            message = Message::RevMatchCompleted; 
           }
         } 
-        //else {
-        //  //if (desiredGear == Gear::First) {
-        //    switch (shiftTimer.getStage()) {
-        //      case 1: {
-        //        //Servo auf Mittelstellung, kurz warten
-        //        servo.writeMicroseconds(SERVO_MIDDLE_US);
-        //      }
-        //      break;
-        //      case 2: {
-        //        shiftTimer.pause();
-        //        //Transmission im Leerlauf hochdrehen; revmatch
-        //        float targetGearRatio = desiredGear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND;
-        //        float targetRPM = getOutPutRpm() * (1/targetGearRatio);
-        //        //Hier dann in der Liste den PWM-Wert suchen und interpolieren, der zur geforderten Drehzahl passt
-        //        //Irgendeine Logik noch reinmachen, die den tatsächlichen PWM-Wert überwacht und ggf. korrigiert
-        //        //nur wenn Die Transmission-RPM angeglichen ist:
-        //        shiftTimer.advance();
-        //      }
-        //      break;
-        //      case 3: {
-        //        servo.writeMicroseconds(SERVO_FIRST_US);
-        //      }
-        //      break;
-        //      case 4: {
-        //        //Schaltvorgang als abgeschlossen markieren
-        //        currentGear = Gear::First;
-        //      }
-        //      break;
-        //    }
-        //}
     }
 }; 
 
@@ -261,7 +311,6 @@ class Drivetrain {
         ).getDirective();
       }
 
-
     public: 
       //Init both transeseses
       void init(); 
@@ -277,6 +326,8 @@ class Drivetrain {
 
       void finalizeShift(Gear gear) {
         currentGear = gear; 
+        leftTrans.setCurrentGear(gear);
+        rightTrans.setCurrentGear(gear);
         leftTrans.setMode(Mode::Drive);
         rightTrans.setMode(Mode::Drive); 
       }
@@ -316,21 +367,30 @@ class Drivetrain {
             case 2: {
               shiftTimer.pause(); 
               //Motor im Leerlauf hochdrehen; revmatch
-              float targetGearRatio = desiredGear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND; 
-              float targetRPM = links.ausgang.getRpm() * (1/targetGearRatio); 
+              leftTrans.setTargetGear(desiredGear);
+              rightTrans.setTargetGear(desiredGear);
+
+
+              //float targetGearRatio = desiredGear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND; 
+              //float targetRPM = links.ausgang.getRpm() * (1/targetGearRatio); 
               //Hier dann in der Liste den PWM-Wert suchen und interpolieren, der zur geforderten Drehzahl passt  
               //Irgendeine Logik noch reinmachen, die den tatsächlichen PWM-Wert überwacht und ggf. korrigiert
               //nur wenn Die Motor-RPM angeglichen ist: 
-              shiftTimer.advance();  
+              if (directive == Directive::EngageClutch) {
+                shiftTimer.advance();  
+              }
+              //shiftTimer.advance();  
             }
             break;  
             case 3: {
-              servo.writeMicroseconds(SERVO_FIRST_US);
+              int servoTargetus = desiredGear == Gear::First ? SERVO_MIDDLE_US - SERVO_TRAVEL_US : SERVO_MIDDLE_US + SERVO_TRAVEL_US;
+              servo.writeMicroseconds(servoTargetus);
             }
             break; 
             case 4: {
               //Schaltvorgang als abgeschlossen markieren 
-              currentGear = Gear::First; 
+              finalizeShift(desiredGear);
+              //currentGear = Gear::First; 
             }
             break;  
           }
