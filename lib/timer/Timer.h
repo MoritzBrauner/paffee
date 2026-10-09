@@ -5,10 +5,10 @@
 
 class Timer {
     protected:
-        unsigned long interval; 
-        unsigned long lastTick;  
-    public: 
-        Timer(unsigned long ms); 
+        unsigned long interval;   // in Mikrosekunden
+        unsigned long lastTick;   // micros()-Zeitstempel
+    public:
+        Timer(unsigned long ms);  // Intervall weiterhin in Millisekunden, intern * 1000
         bool fires(); 
 };
 

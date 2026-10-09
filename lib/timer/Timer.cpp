@@ -1,12 +1,12 @@
 #include "Timer.h"
 
 Timer::Timer(unsigned long ms) {
-    interval = ms; 
-    lastTick = millis(); 
+    interval = ms * 1000UL;
+    lastTick = micros();
 }
 
 bool Timer::fires() {
-    unsigned long now = millis(); 
+    unsigned long now = micros();
     if (now - lastTick >= interval) {
         lastTick = now;
         return true;  
@@ -42,7 +42,7 @@ uint8_t SingleUseStagedTimer::getStage() {
 }
 
 void SingleUseStagedTimer::reset(bool start) {
-    this->lastTick = millis();
+    this->lastTick = micros();
     this->paused = false;  
     this->currentStage = 1; 
     if (start) this->enabled = true; 
