@@ -12,7 +12,10 @@ constexpr float GEAR_RATIO_SECOND = 28.0f / 32;
 constexpr int SERVO_MIDDLE_US = 1500;
 constexpr int SERVO_TRAVEL_US = 700;
 
-constexpr int SAMPLE_INTERVAL_MS = 50; 
+constexpr int SAMPLE_INTERVAL_MS = 50;
+constexpr int MOTOR_PWM_FREQUENCY = 20000; //Check later for Correctness 
+
+constexpr unsigned long MAX_REVMATCH_TIMEOUT_MICROS = 2000UL * 1000;
 
 enum class Message {
   Happy,
@@ -54,6 +57,7 @@ enum class Gear {
 enum class Mode {
   Drive,
   Shift,
+  RevMatch,
 };
 
 enum class Direction {
@@ -113,7 +117,7 @@ class Transmission {
     float getTargetPwmByRpm(float rpm) {
       //Interpolate between calibratedMotorRPMs and their corresponding PWM values 
       //to find the PWM value that corresponds to the desired RPM 
-      for (int i = 0; i < sizeof(calibratedMotorRPMs); i++) {
+      for (int i = 0; (i + 1) < std::size(calibratedMotorRPMs); i++) {
         if (rpm >= calibratedMotorRPMs[i] && rpm <= calibratedMotorRPMs[i+1]) {
           float pwm1 = i * 100; 
           float pwm2 = (i+1) * 100; 
@@ -217,8 +221,7 @@ class Transmission {
     //}
 
     RotationSpeeds getRotationalSpeeds() {
-      //RotationSpeeds rpms(lastMeasuredInputRpm, 0); 
-      unsigned long millisNow = millis(); 
+      //RotationSpeeds rpms(lastMeasuredInputRpm, 0);
       //input
       if (hallTimer.fires()) {
         long now = encoder.getCount(); 
@@ -226,9 +229,13 @@ class Transmission {
         lastCount = now; 
         lastMeasuredInputRpm = (delta * 60000.0f) / (SAMPLE_INTERVAL_MS * countsPerRev);
       }
-      //output 
-      if ((millisNow * 1000) - lastTickMicros > 1000 * 1000) {
-        lastMeasuredOutputRpm = 0; 
+      //output
+      //Erst den Zeitstempel kopieren, dann micros() lesen: Kommt die ISR dazwischen,
+      //waere lastTickMicros sonst neuer als microsNow und die Differenz liefe ueber.
+      unsigned long lastTick = lastTickMicros;
+      unsigned long microsNow = micros();
+      if (microsNow - lastTick > 1000UL * 1000) {
+        lastMeasuredOutputRpm = 0;
       } else {
         lastMeasuredOutputRpm = lastPeriodMicros == 0 ? 0 : 1000.0f * 1000 * 60 / lastPeriodMicros / 32; 
       }  
@@ -304,6 +311,8 @@ class Drivetrain {
 
       Servo servo; 
 
+      unsigned long revmatchStartMicros = 0;
+
       Directive getTransMessages() {
         return Messages(
           leftTrans.getMessage(), 
@@ -322,6 +331,14 @@ class Drivetrain {
         shiftTimer.reset(true); 
         leftTrans.setMode(Mode::Shift);
         rightTrans.setMode(Mode::Shift); 
+      }
+
+      void initializeRevMatch() {
+        leftTrans.setTargetGear(desiredGear);
+        rightTrans.setTargetGear(desiredGear);
+        revmatchStartMicros = micros();
+        leftTrans.setMode(Mode::RevMatch);
+        rightTrans.setMode(Mode::RevMatch); 
       }
 
       void finalizeShift(Gear gear) {
@@ -367,16 +384,20 @@ class Drivetrain {
             case 2: {
               shiftTimer.pause(); 
               //Motor im Leerlauf hochdrehen; revmatch
-              leftTrans.setTargetGear(desiredGear);
-              rightTrans.setTargetGear(desiredGear);
-
-
+              initializeRevMatch();
+              //leftTrans.setTargetGear(desiredGear);
+              //rightTrans.setTargetGear(desiredGear);
               //float targetGearRatio = desiredGear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND; 
               //float targetRPM = links.ausgang.getRpm() * (1/targetGearRatio); 
               //Hier dann in der Liste den PWM-Wert suchen und interpolieren, der zur geforderten Drehzahl passt  
               //Irgendeine Logik noch reinmachen, die den tatsächlichen PWM-Wert überwacht und ggf. korrigiert
               //nur wenn Die Motor-RPM angeglichen ist: 
               if (directive == Directive::EngageClutch) {
+                Serial.println("RevMatch completed, advancing shiftTimer");
+                shiftTimer.advance();  
+              }
+              if (micros() - revmatchStartMicros > MAX_REVMATCH_TIMEOUT_MICROS) {
+                Serial.println("RevMatch timeout, advancing shiftTimer");
                 shiftTimer.advance();  
               }
               //shiftTimer.advance();  
