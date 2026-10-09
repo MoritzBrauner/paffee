@@ -4,3 +4,12 @@
 .vscode/launch.json
 .vscode/ipch
 .idea/
+
+__pycache__/
+*.pyc
+.DS_Store
+
+# Druck-Artefakte
+*.gcode
+*.3mf
+out/

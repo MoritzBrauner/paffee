@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660mm" height="520mm" viewBox="0 0 660 520">
+<style>text{font:7px sans-serif;fill:#222}.l{font:7px sans-serif}.s{font:6px sans-serif;fill:#666}.b{font:7.5px sans-serif;font-weight:bold;fill:#111}.hd{font:11.5px sans-serif;font-weight:bold;fill:#111}.h2{font:8px sans-serif;font-weight:bold;fill:#111}.gear{fill:#e4ecf3;stroke:#2b4a63;stroke-width:1}.gearf{fill:#fbf0dc;stroke:#8a5a12;stroke-width:1}.mot{fill:#ededed;stroke:#333;stroke-width:1}.kupplung{fill:#d8ecdb;stroke:#1d6b2e;stroke-width:1.2}.lining{fill:#b08a4a;stroke:#5c4317;stroke-width:.5}.shaft{stroke:#111;stroke-width:2.4;stroke-linecap:round}.axis{stroke:#aaa;stroke-width:.5;stroke-dasharray:8 3 2 3}.t{stroke:#2b4a63;stroke-width:.6}.brg{fill:#fff;stroke:#111;stroke-width:.8}.wall{fill:#dcdcdc;stroke:#333;stroke-width:.9}.hous{fill:none;stroke:#555;stroke-width:1;stroke-dasharray:4 3}.fork{fill:none;stroke:#1d6b2e;stroke-width:1.5}.dim{stroke:#a00;stroke-width:.6}.flow{fill:none;stroke:#c00;stroke-width:2}.box{fill:none;stroke:#ccc;stroke-width:.8}</style>
+<rect width="660" height="520" fill="white"/>
+<text class="hd" x="22.0" y="24.0" text-anchor="start">Antriebsstrang: Zweiganggetriebe mit Reibkupplung + Seitenvorgelege</text>
+<text class="s" x="22.0" y="35.0" text-anchor="start">eine Fahrzeugseite, 1:10, Gegenseite gespiegelt. Quer maszstaeblich (Achsabstaende, Teilkreise), axial gestreckt. Lager und Wellen aus frueherem Konzept, nicht bestaetigt.</text>
+<text class="s" x="22.0" y="46.0" text-anchor="start">Blau = fest auf der Welle   |   Orange = frei drehend auf Lager   |   Gruen = Schaltelement</text>
+<line class="axis" x1="125.1" y1="205.0" x2="352.8" y2="205.0"/>
+<line class="axis" x1="125.1" y1="256.8" x2="352.8" y2="256.8"/>
+<line class="axis" x1="125.1" y1="291.2" x2="352.8" y2="291.2"/>
+<text class="s" x="122.8" y="203.0" text-anchor="end">Eingangswelle</text>
+<text class="s" x="122.8" y="212.0" text-anchor="end">O12 gedruckt + M5</text>
+<text class="s" x="122.8" y="254.8" text-anchor="end">Abtrieb = Durchtrieb</text>
+<text class="s" x="122.8" y="263.8" text-anchor="end">O12 gedruckt + M5</text>
+<text class="s" x="122.8" y="289.2" text-anchor="end">Triebradwelle</text>
+<text class="s" x="122.8" y="298.2" text-anchor="end">O10 gedruckt + M5</text>
+<rect class="mot" x="134.3" y="183.7" width="55.2" height="42.5" rx="3"/>
+<rect class="mot" x="189.5" y="190.1" width="25.3" height="29.9" rx="2"/>
+<text class="l" x="138.9" y="196.0" text-anchor="start">JGB37-520</text>
+<text class="s" x="138.9" y="204.0" text-anchor="start">6,25:1, 12 V</text>
+<text class="s" x="138.9" y="212.0" text-anchor="start">1600 min-1</text>
+<text class="s" x="138.9" y="220.0" text-anchor="start">Stall 0,088 Nm</text>
+<line class="shaft" x1="214.8" y1="205.0" x2="290.7" y2="205.0"/>
+<line class="shaft" x1="219.4" y1="256.8" x2="326.4" y2="256.8"/>
+<line class="shaft" x1="305.6" y1="291.2" x2="344.8" y2="291.2"/>
+<rect class="gear" x="233.2" y="193.8" width="11.5" height="22.4" rx="0"/>
+<line class="t" x1="234.3" y1="193.8" x2="234.3" y2="191.8"/>
+<line class="t" x1="236.6" y1="193.8" x2="236.6" y2="191.8"/>
+<line class="t" x1="238.9" y1="193.8" x2="238.9" y2="191.8"/>
+<line class="t" x1="241.2" y1="193.8" x2="241.2" y2="191.8"/>
+<line class="t" x1="243.5" y1="193.8" x2="243.5" y2="191.8"/>
+<line class="t" x1="234.3" y1="216.2" x2="234.3" y2="218.2"/>
+<line class="t" x1="236.6" y1="216.2" x2="236.6" y2="218.2"/>
+<line class="t" x1="238.9" y1="216.2" x2="238.9" y2="218.2"/>
+<line class="t" x1="241.2" y1="216.2" x2="241.2" y2="218.2"/>
+<line class="t" x1="243.5" y1="216.2" x2="243.5" y2="218.2"/>
+<rect class="gearf" x="233.2" y="216.2" width="11.5" height="81.1" rx="0"/>
+<line class="t" x1="233.9" y1="216.2" x2="233.9" y2="214.2"/>
+<line class="t" x1="235.4" y1="216.2" x2="235.4" y2="214.2"/>
+<line class="t" x1="236.8" y1="216.2" x2="236.8" y2="214.2"/>
+<line class="t" x1="238.2" y1="216.2" x2="238.2" y2="214.2"/>
+<line class="t" x1="239.7" y1="216.2" x2="239.7" y2="214.2"/>
+<line class="t" x1="241.1" y1="216.2" x2="241.1" y2="214.2"/>
+<line class="t" x1="242.5" y1="216.2" x2="242.5" y2="214.2"/>
+<line class="t" x1="244.0" y1="216.2" x2="244.0" y2="214.2"/>
+<line class="t" x1="233.9" y1="297.3" x2="233.9" y2="299.3"/>
+<line class="t" x1="235.4" y1="297.3" x2="235.4" y2="299.3"/>
+<line class="t" x1="236.8" y1="297.3" x2="236.8" y2="299.3"/>
+<line class="t" x1="238.2" y1="297.3" x2="238.2" y2="299.3"/>
+<line class="t" x1="239.7" y1="297.3" x2="239.7" y2="299.3"/>
+<line class="t" x1="241.1" y1="297.3" x2="241.1" y2="299.3"/>
+<line class="t" x1="242.5" y1="297.3" x2="242.5" y2="299.3"/>
+<line class="t" x1="244.0" y1="297.3" x2="244.0" y2="299.3"/>
+<text class="b" x="238.9" y="188.8" text-anchor="middle">13 Z</text>
+<text class="b" x="238.9" y="307.3" text-anchor="middle">47 Z</text>
+<rect class="gear" x="272.3" y="180.8" width="11.5" height="48.3" rx="0"/>
+<line class="t" x1="273.0" y1="180.8" x2="273.0" y2="178.8"/>
+<line class="t" x1="274.5" y1="180.8" x2="274.5" y2="178.8"/>
+<line class="t" x1="275.9" y1="180.8" x2="275.9" y2="178.8"/>
+<line class="t" x1="277.3" y1="180.8" x2="277.3" y2="178.8"/>
+<line class="t" x1="278.8" y1="180.8" x2="278.8" y2="178.8"/>
+<line class="t" x1="280.2" y1="180.8" x2="280.2" y2="178.8"/>
+<line class="t" x1="281.6" y1="180.8" x2="281.6" y2="178.8"/>
+<line class="t" x1="283.1" y1="180.8" x2="283.1" y2="178.8"/>
+<line class="t" x1="273.0" y1="229.2" x2="273.0" y2="231.2"/>
+<line class="t" x1="274.5" y1="229.2" x2="274.5" y2="231.2"/>
+<line class="t" x1="275.9" y1="229.2" x2="275.9" y2="231.2"/>
+<line class="t" x1="277.3" y1="229.2" x2="277.3" y2="231.2"/>
+<line class="t" x1="278.8" y1="229.2" x2="278.8" y2="231.2"/>
+<line class="t" x1="280.2" y1="229.2" x2="280.2" y2="231.2"/>
+<line class="t" x1="281.6" y1="229.2" x2="281.6" y2="231.2"/>
+<line class="t" x1="283.1" y1="229.2" x2="283.1" y2="231.2"/>
+<rect class="gearf" x="272.3" y="229.2" width="11.5" height="55.2" rx="0"/>
+<line class="t" x1="273.0" y1="229.2" x2="273.0" y2="227.2"/>
+<line class="t" x1="274.5" y1="229.2" x2="274.5" y2="227.2"/>
+<line class="t" x1="275.9" y1="229.2" x2="275.9" y2="227.2"/>
+<line class="t" x1="277.3" y1="229.2" x2="277.3" y2="227.2"/>
+<line class="t" x1="278.8" y1="229.2" x2="278.8" y2="227.2"/>
+<line class="t" x1="280.2" y1="229.2" x2="280.2" y2="227.2"/>
+<line class="t" x1="281.6" y1="229.2" x2="281.6" y2="227.2"/>
+<line class="t" x1="283.1" y1="229.2" x2="283.1" y2="227.2"/>
+<line class="t" x1="273.0" y1="284.4" x2="273.0" y2="286.4"/>
+<line class="t" x1="274.5" y1="284.4" x2="274.5" y2="286.4"/>
+<line class="t" x1="275.9" y1="284.4" x2="275.9" y2="286.4"/>
+<line class="t" x1="277.3" y1="284.4" x2="277.3" y2="286.4"/>
+<line class="t" x1="278.8" y1="284.4" x2="278.8" y2="286.4"/>
+<line class="t" x1="280.2" y1="284.4" x2="280.2" y2="286.4"/>
+<line class="t" x1="281.6" y1="284.4" x2="281.6" y2="286.4"/>
+<line class="t" x1="283.1" y1="284.4" x2="283.1" y2="286.4"/>
+<text class="b" x="278.0" y="175.8" text-anchor="middle">28 Z</text>
+<text class="b" x="278.0" y="294.4" text-anchor="middle">32 Z</text>
+<rect class="kupplung" x="251.6" y="244.7" width="13.8" height="24.1" rx="1"/>
+<rect class="lining" x="249.1" y="244.7" width="2.5" height="24.1"/>
+<rect class="lining" x="265.4" y="244.7" width="2.5" height="24.1"/>
+<path class="fork" d="M 248.6 269.4 l 0 16 l 19.8 0 l 0 -16"/>
+<line class="fork" x1="258.5" y1="285.4" x2="258.5" y2="309.4"/>
+<line class="fork" x1="188.5" y1="309.4" x2="258.5" y2="309.4"/>
+<text class="s" x="185.5" y="311.9" text-anchor="end">zum Servo</text>
+<text class="s" x="218.5" y="319.4" text-anchor="middle">Reibkupplung mit Schleifpapier-Belag</text>
+<text class="s" x="218.5" y="328.4" text-anchor="middle">Gestaenge zum Servo, schaltet beide Seiten</text>
+<rect class="brg" x="221.2" y="249.2" width="5.5" height="6.5"/>
+<rect class="brg" x="221.2" y="257.8" width="5.5" height="6.5"/>
+<rect class="brg" x="290.2" y="249.2" width="5.5" height="6.5"/>
+<rect class="brg" x="290.2" y="257.8" width="5.5" height="6.5"/>
+<text class="s" x="226.0" y="278.8" text-anchor="end">2x 6001ZZ</text>
+<rect class="brg" x="302.9" y="283.8" width="5.5" height="6.5"/>
+<rect class="brg" x="302.9" y="292.2" width="5.5" height="6.5"/>
+<rect class="brg" x="321.3" y="283.8" width="5.5" height="6.5"/>
+<rect class="brg" x="321.3" y="292.2" width="5.5" height="6.5"/>
+<text class="s" x="334.4" y="335.2" text-anchor="middle">2x 6700ZZ</text>
+<rect class="wall" x="302.2" y="163.6" width="4.6" height="193.2" rx="0"/>
+<text class="s" x="305.2" y="153.2" text-anchor="middle">Wannenseite</text>
+<rect class="hous" x="307.9" y="244.1" width="18.4" height="77.6"/>
+<text class="s" x="345.3" y="240.8" text-anchor="start">Seitenvorgelege 13:47,</text>
+<text class="s" x="345.3" y="249.8" text-anchor="start">aussen am Bug</text>
+<rect class="gear" x="311.4" y="249.3" width="11.5" height="14.9" rx="0"/>
+<line class="t" x1="312.5" y1="249.3" x2="312.5" y2="247.3"/>
+<line class="t" x1="314.8" y1="249.3" x2="314.8" y2="247.3"/>
+<line class="t" x1="317.1" y1="249.3" x2="317.1" y2="247.3"/>
+<line class="t" x1="319.4" y1="249.3" x2="319.4" y2="247.3"/>
+<line class="t" x1="321.8" y1="249.3" x2="321.8" y2="247.3"/>
+<line class="t" x1="312.5" y1="264.2" x2="312.5" y2="266.2"/>
+<line class="t" x1="314.8" y1="264.2" x2="314.8" y2="266.2"/>
+<line class="t" x1="317.1" y1="264.2" x2="317.1" y2="266.2"/>
+<line class="t" x1="319.4" y1="264.2" x2="319.4" y2="266.2"/>
+<line class="t" x1="321.8" y1="264.2" x2="321.8" y2="266.2"/>
+<rect class="gear" x="311.4" y="264.2" width="11.5" height="54.0" rx="0"/>
+<line class="t" x1="312.1" y1="264.2" x2="312.1" y2="262.2"/>
+<line class="t" x1="313.6" y1="264.2" x2="313.6" y2="262.2"/>
+<line class="t" x1="315.0" y1="264.2" x2="315.0" y2="262.2"/>
+<line class="t" x1="316.4" y1="264.2" x2="316.4" y2="262.2"/>
+<line class="t" x1="317.9" y1="264.2" x2="317.9" y2="262.2"/>
+<line class="t" x1="319.3" y1="264.2" x2="319.3" y2="262.2"/>
+<line class="t" x1="320.7" y1="264.2" x2="320.7" y2="262.2"/>
+<line class="t" x1="322.2" y1="264.2" x2="322.2" y2="262.2"/>
+<line class="t" x1="312.1" y1="318.3" x2="312.1" y2="320.3"/>
+<line class="t" x1="313.6" y1="318.3" x2="313.6" y2="320.3"/>
+<line class="t" x1="315.0" y1="318.3" x2="315.0" y2="320.3"/>
+<line class="t" x1="316.4" y1="318.3" x2="316.4" y2="320.3"/>
+<line class="t" x1="317.9" y1="318.3" x2="317.9" y2="320.3"/>
+<line class="t" x1="319.3" y1="318.3" x2="319.3" y2="320.3"/>
+<line class="t" x1="320.7" y1="318.3" x2="320.7" y2="320.3"/>
+<line class="t" x1="322.2" y1="318.3" x2="322.2" y2="320.3"/>
+<text class="b" x="317.1" y="241.1" text-anchor="middle">13 Z</text>
+<text class="b" x="317.1" y="328.3" text-anchor="middle">47 Z</text>
+<rect class="gear" x="327.5" y="258.1" width="13.8" height="66.4" rx="0"/>
+<line class="t" x1="328.6" y1="258.1" x2="328.6" y2="256.1"/>
+<line class="t" x1="330.9" y1="258.1" x2="330.9" y2="256.1"/>
+<line class="t" x1="333.2" y1="258.1" x2="333.2" y2="256.1"/>
+<line class="t" x1="335.5" y1="258.1" x2="335.5" y2="256.1"/>
+<line class="t" x1="337.8" y1="258.1" x2="337.8" y2="256.1"/>
+<line class="t" x1="340.1" y1="258.1" x2="340.1" y2="256.1"/>
+<line class="t" x1="328.6" y1="324.4" x2="328.6" y2="326.4"/>
+<line class="t" x1="330.9" y1="324.4" x2="330.9" y2="326.4"/>
+<line class="t" x1="333.2" y1="324.4" x2="333.2" y2="326.4"/>
+<line class="t" x1="335.5" y1="324.4" x2="335.5" y2="326.4"/>
+<line class="t" x1="337.8" y1="324.4" x2="337.8" y2="326.4"/>
+<line class="t" x1="340.1" y1="324.4" x2="340.1" y2="326.4"/>
+<text class="b" x="359.3" y="289.2" text-anchor="start">Triebrad 15 Z</text>
+<text class="s" x="359.3" y="298.2" text-anchor="start">Teilkreis 57,72</text>
+<line class="dim" x1="224.0" y1="205.0" x2="224.0" y2="256.8"/>
+<line class="dim" x1="220.5" y1="205.0" x2="227.5" y2="205.0"/>
+<line class="dim" x1="220.5" y1="256.8" x2="227.5" y2="256.8"/>
+<text class="s" x="219.0" y="232.9" text-anchor="end">45</text>
+<line class="dim" x1="348.2" y1="256.8" x2="348.2" y2="291.2"/>
+<line class="dim" x1="344.7" y1="256.8" x2="351.7" y2="256.8"/>
+<line class="dim" x1="344.7" y1="291.2" x2="351.7" y2="291.2"/>
+<text class="s" x="352.2" y="276.0" text-anchor="start">30</text>
+<line class="box" x1="22" y1="382" x2="638" y2="382"/>
+<text class="h2" x="22.0" y="394.0" text-anchor="start">Schaltzustaende</text>
+<text class="s" x="110.0" y="394.0" text-anchor="start">(Mini-Schema: links Motorseite, rechts Wannenseite)</text>
+<rect class="box" x="30" y="406" width="300" height="80" rx="3"/>
+<text class="b" x="38.0" y="420.0" text-anchor="start">1. Gang (niedrig) - Kupplung zur Motorseite</text>
+<line class="axis" x1="40" y1="436" x2="160" y2="436"/>
+<line class="axis" x1="40" y1="466" x2="160" y2="466"/>
+<rect class="gear" x="54" y="432" width="12" height="7"/>
+<rect class="gearf" x="54" y="452" width="12" height="28"/>
+<text class="s" x="60.0" y="488.0" text-anchor="middle">13:47</text>
+<rect class="gear" x="116" y="429" width="12" height="14"/>
+<rect class="gearf" x="116" y="456" width="12" height="20"/>
+<text class="s" x="122.0" y="488.0" text-anchor="middle">28:32</text>
+<rect class="kupplung" x="66" y="460" width="16" height="12"/>
+<path class="flow" d="M 60 436 L 60 466 L 74 466"/>
+<text class="l" x="180.0" y="438.0" text-anchor="start">Getriebe 13:47 = 3,615</text>
+<text class="l" x="180.0" y="450.0" text-anchor="start">gesamt mit Seitenvorgelege 13,07</text>
+<text class="l" x="180.0" y="462.0" text-anchor="start">v leer 0,34 m/s = 1,2 km/h</text>
+<text class="l" x="180.0" y="474.0" text-anchor="start">Blockiermoment am Triebrad 0,903 Nm</text>
+<rect class="box" x="350" y="406" width="300" height="80" rx="3"/>
+<text class="b" x="358.0" y="420.0" text-anchor="start">2. Gang (hoch) - Kupplung zur Wannenseite</text>
+<line class="axis" x1="360" y1="436" x2="480" y2="436"/>
+<line class="axis" x1="360" y1="466" x2="480" y2="466"/>
+<rect class="gear" x="374" y="432" width="12" height="7"/>
+<rect class="gearf" x="374" y="452" width="12" height="28"/>
+<text class="s" x="380.0" y="488.0" text-anchor="middle">13:47</text>
+<rect class="gear" x="436" y="429" width="12" height="14"/>
+<rect class="gearf" x="436" y="456" width="12" height="20"/>
+<text class="s" x="442.0" y="488.0" text-anchor="middle">28:32</text>
+<rect class="kupplung" x="420" y="460" width="16" height="12"/>
+<path class="flow" d="M 442 436 L 442 466 L 428 466"/>
+<text class="l" x="500.0" y="438.0" text-anchor="start">Getriebe 28:32 = 1,143</text>
+<text class="l" x="500.0" y="450.0" text-anchor="start">gesamt mit Seitenvorgelege 4,13</text>
+<text class="l" x="500.0" y="462.0" text-anchor="start">v leer 1,07 m/s = 3,8 km/h</text>
+<text class="l" x="500.0" y="474.0" text-anchor="start">Blockiermoment am Triebrad 0,285 Nm</text>
+<text class="s" x="22.0" y="506.0" text-anchor="start">Rot: Kraftfluss. Beide Zahnradpaare sind immer im Eingriff, die Reibkupplung waehlt aus, Mittelstellung = Neutral. Rechnerisch bei 11,1 V: Motor 1472 1/min, Stall 0,081 Nm (Herstellertabelle), Wirkungsgrad 0,85.</text>
+</svg>
