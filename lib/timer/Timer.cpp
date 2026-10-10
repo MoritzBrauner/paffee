@@ -59,5 +59,7 @@ void SingleUseStagedTimer::pause() {
 
 void SingleUseStagedTimer::advance() {
     this->paused = false; 
-    this->getStage(); 
+    this->lastTick = micros(); 
+    this->currentStage++; 
+    //this->getStage(); 
 }  

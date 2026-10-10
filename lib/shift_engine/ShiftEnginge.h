@@ -77,7 +77,7 @@ class Transmission {
     bool initialized = false;
     bool calibrated = false;
 
-    float calibratedMotorRPMs[10] = {0};
+    float calibratedMotorRPMs[11] = {0};
 
     Message message;
 
@@ -109,8 +109,9 @@ class Transmission {
 
     SingleUseStagedTimer shiftTimer;
     
-    void write(uint8_t pwm, Direction direction) {
-      ledcWrite(0, pwm); 
+    void write(__uint16_t pwm, Direction direction) {
+      //Wir nehmen PWM-Werte von 0..1023 
+      //ledcWrite(0, pwm); 
       digitalWrite(pin_motorDirection, direction == Direction::Forward ? HIGH : LOW); 
     }
 
@@ -123,6 +124,7 @@ class Transmission {
           float pwm2 = (i+1) * 100; 
           float rpm1 = calibratedMotorRPMs[i]; 
           float rpm2 = calibratedMotorRPMs[i+1]; 
+          if (rpm2 - rpm1 <= 0) return pwm1;  
           float pwm = pwm1 + (rpm - rpm1) * (pwm2 - pwm1) / (rpm2 - rpm1); 
           return pwm; 
         }
@@ -165,7 +167,6 @@ class Transmission {
           Serial.println("Unable to calibrate. ShiftEnginge ist not initialized");
           return;
         }
-
         Serial.println("Transmission calibration started...");
         Serial.println("Transmission Stop");
         write(0, Direction::Forward);
@@ -177,6 +178,8 @@ class Transmission {
           write(i * 100, Direction::Forward);
           delay(500);
         }
+        calibratedMotorRPMs[10] = getRotationalSpeeds().input;
+        write(0, Direction::Forward); 
         this->calibrated = true;
         Serial.println("Transmission calibration finished.");
     }
@@ -187,6 +190,8 @@ class Transmission {
 
     void setMode(Mode mode) {
       this->mode = mode; 
+      //clear message 
+      this->message = Message::Happy; 
     }
 
     void setTargetGear(Gear gear) {
@@ -274,26 +279,34 @@ class Transmission {
             case Gear::First: {
               if (rpms.output > 400) {
                 message = Message::RequestingShiftUp;
+              } else {
+                message = Message::Happy; 
               }
             }
             break;
             case Gear::Second: {
               if (rpms.output <= 350) {
                 message = Message::RequestingShiftDown;
+              } else {
+                message = Message::Happy; 
               }
             }
             break;
-            default: {
-              message = Message::Happy; // :) 
-            }
+            //default: {
+            //  message = Message::Happy; // :) 
+            //}
           }
         } else {
           //ignore Remote Control Input, just RevMatch the output RPM to the targetGearRatio
           float targetPwm = getTargetPwmByRpm(rpms.output * (1/targetRatio));
           write(targetPwm, direction);
           const uint8_t tolerance = 20;
-          if (rpms.input >= rpms.output * (1/targetRatio) - tolerance && rpms.input <= rpms.output * (1/targetRatio) + tolerance) {
-            message = Message::RevMatchCompleted; 
+          if (mode == Mode::RevMatch) {
+            if (rpms.input >= rpms.output * (1/targetRatio) - tolerance && fabsf(rpms.input) <= rpms.output * (1/targetRatio) + tolerance) {
+              message = Message::RevMatchCompleted; 
+            } else {
+              message = Message::Happy; 
+            }
           }
         } 
     }
@@ -380,11 +393,15 @@ class Drivetrain {
               //Servo auf Mittelstellung, kurz warten 
               servo.writeMicroseconds(SERVO_MIDDLE_US);
             } 
-            break; 
+            break;
             case 2: {
+              initializeRevMatch();
+              shiftTimer.advance(); 
+            }
+            break; 
+            case 3: {
               shiftTimer.pause(); 
               //Motor im Leerlauf hochdrehen; revmatch
-              initializeRevMatch();
               //leftTrans.setTargetGear(desiredGear);
               //rightTrans.setTargetGear(desiredGear);
               //float targetGearRatio = desiredGear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND; 
@@ -395,7 +412,7 @@ class Drivetrain {
               if (directive == Directive::EngageClutch) {
                 Serial.println("RevMatch completed, advancing shiftTimer");
                 shiftTimer.advance();  
-              }
+              } else 
               if (micros() - revmatchStartMicros > MAX_REVMATCH_TIMEOUT_MICROS) {
                 Serial.println("RevMatch timeout, advancing shiftTimer");
                 shiftTimer.advance();  
@@ -403,12 +420,12 @@ class Drivetrain {
               //shiftTimer.advance();  
             }
             break;  
-            case 3: {
+            case 4: {
               int servoTargetus = desiredGear == Gear::First ? SERVO_MIDDLE_US - SERVO_TRAVEL_US : SERVO_MIDDLE_US + SERVO_TRAVEL_US;
               servo.writeMicroseconds(servoTargetus);
             }
             break; 
-            case 4: {
+            case 5: {
               //Schaltvorgang als abgeschlossen markieren 
               finalizeShift(desiredGear);
               //currentGear = Gear::First; 
