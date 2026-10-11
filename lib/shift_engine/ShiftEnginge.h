@@ -12,7 +12,9 @@ constexpr float GEAR_RATIO_SECOND = 28.0f / 32;
 constexpr int SERVO_MIDDLE_US = 1500;
 constexpr int SERVO_TRAVEL_US = 700;
 
-constexpr int SAMPLE_INTERVAL_MS = 50;
+constexpr unsigned long SHIFT_TIMER_INTERVAL = 200; 
+
+//constexpr int SAMPLE_INTERVAL_MS = 50;
 constexpr int MOTOR_PWM_FREQUENCY = 20000; //Check later for Correctness 
 
 constexpr unsigned long MAX_REVMATCH_TIMEOUT_MICROS = 2000UL * 1000;
@@ -79,9 +81,9 @@ class Transmission {
 
     float calibratedMotorRPMs[11] = {0};
 
-    Message message;
+    Message message = Message::Happy;
 
-    Mode mode;
+    Mode mode = Mode::Drive;
     
     Gear targetGear = Gear::First;
     float targetRatio = GEAR_RATIO_FIRST;
@@ -98,18 +100,16 @@ class Transmission {
 
     uint8_t pin_hallSensor1; 
     uint8_t pin_hallSensor2; 
-    Timer hallTimer; 
-    const static float countsPerRev = 275.0f; 
-    const static uint32_t HALL_SAMPLE_INTERVAL_MS = 50;
+    Timer hallTimer = Timer(50); 
+    static constexpr float countsPerRev = 275.0f; 
+    static constexpr unsigned long HALL_SAMPLE_INTERVAL_MS = 50;
     ESP32Encoder encoder; 
     int64_t lastCount = 0; 
     float lastMeasuredInputRpm = 0; 
 
     //RotationSpeeds rpms;
-
-    SingleUseStagedTimer shiftTimer;
     
-    void write(__uint16_t pwm, Direction direction) {
+    void write(const __uint16_t pwm, const Direction direction) {
       //Wir nehmen PWM-Werte von 0..1023 
       //ledcWrite(0, pwm); 
       digitalWrite(pin_motorDirection, direction == Direction::Forward ? HIGH : LOW); 
@@ -126,9 +126,11 @@ class Transmission {
           float rpm2 = calibratedMotorRPMs[i+1]; 
           if (rpm2 - rpm1 <= 0) return pwm1;  
           float pwm = pwm1 + (rpm - rpm1) * (pwm2 - pwm1) / (rpm2 - rpm1); 
-          return pwm; 
+          return pwm;
         }
       }
+      //Ziel-Drehzahl ueber dem Kalibrierbereich -> Vollgas statt Motor aus
+      if (rpm > calibratedMotorRPMs[10]) return 1023;
       return 0;
     }
 
@@ -143,14 +145,22 @@ class Transmission {
     }
 
   public:
+    Transmission(uint8_t pin_motorPwm, uint8_t pin_motorDirection,uint8_t pin_photoElectricSpeedSensor, uint8_t pin_hallSensor1, uint8_t pin_hallSensor2): 
+      pin_motorPwm(pin_motorPwm), pin_motorDirection(pin_motorDirection), pin_photoElectricSpeedSensor(pin_photoElectricSpeedSensor), pin_hallSensor1(pin_hallSensor1), pin_hallSensor2(pin_hallSensor2) {
+    }
+
     void init() {
-       
       Serial.println("Initializing Transmission...");
       //Set Pin Modes
-
+      pinMode(pin_motorPwm, OUTPUT); 
+      pinMode(pin_motorDirection, OUTPUT); 
+      pinMode(pin_photoElectricSpeedSensor, INPUT_PULLUP); 
+      pinMode(pin_hallSensor1, INPUT_PULLUP); 
+      pinMode(pin_hallSensor2, INPUT_PULLUP); 
       //Atach ISR for Optical Sensor
       attachInterruptArg(digitalPinToInterrupt(pin_photoElectricSpeedSensor), onSensorChangeISR, this, RISING); 
       //Attach Encoder
+      ESP32Encoder::useInternalWeakPullResistors = UP;
       encoder.attachFullQuad(pin_hallSensor1, pin_hallSensor2); 
       encoder.clearCount(); 
       //Initialize Timers
@@ -204,27 +214,6 @@ class Transmission {
       this->currentRatio = gear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND;
     }
 
-    
-
-    //void updateRotationalSpeeds() {
-    //  //RotationSpeeds rpms; 
-    //  unsigned long millisNow = millis(); 
-    //  //input
-    //  if (hallTimer.fires()) {
-    //    long now = encoder.getCount(); 
-    //    long delta = now - lastCount; 
-    //    lastCount = now; 
-    //    rpms.output = (delta * 60000.0f) / (SAMPLE_INTERVAL_MS * countsPerRev);
-    //  }
-    //  //output 
-    //  if ((millisNow * 1000) - lastTickMicros > 1000 * 1000) {
-    //    rpms.input = 0; 
-    //  } else {
-    //    rpms.input = lastPeriodMicros == 0 ? 0 : 1000.0f * 1000 * 60 / lastPeriodMicros / 32; 
-    //  }  
-    //  //return rpms; 
-    //}
-
     RotationSpeeds getRotationalSpeeds() {
       //RotationSpeeds rpms(lastMeasuredInputRpm, 0);
       //input
@@ -232,7 +221,7 @@ class Transmission {
         long now = encoder.getCount(); 
         long delta = now - lastCount; 
         lastCount = now; 
-        lastMeasuredInputRpm = (delta * 60000.0f) / (SAMPLE_INTERVAL_MS * countsPerRev);
+        lastMeasuredInputRpm = (delta * 60000.0f) / (HALL_SAMPLE_INTERVAL_MS * countsPerRev);
       }
       //output
       //Erst den Zeitstempel kopieren, dann micros() lesen: Kommt die ISR dazwischen,
@@ -246,7 +235,6 @@ class Transmission {
       }  
       return RotationSpeeds(lastMeasuredInputRpm, lastMeasuredOutputRpm); 
     }
-
 
     /*Get both input and output RPM.
     Look for the happiness state: 
@@ -302,7 +290,7 @@ class Transmission {
           write(targetPwm, direction);
           const uint8_t tolerance = 20;
           if (mode == Mode::RevMatch) {
-            if (rpms.input >= rpms.output * (1/targetRatio) - tolerance && fabsf(rpms.input) <= rpms.output * (1/targetRatio) + tolerance) {
+            if (fabsf(rpms.input) >= rpms.output * (1/targetRatio) - tolerance && fabsf(rpms.input) <= rpms.output * (1/targetRatio) + tolerance) {
               message = Message::RevMatchCompleted; 
             } else {
               message = Message::Happy; 
@@ -317,12 +305,13 @@ class Drivetrain {
       Transmission leftTrans; 
       Transmission rightTrans; 
 
-      SingleUseStagedTimer shiftTimer; 
+      SingleUseStagedTimer shiftTimer = SingleUseStagedTimer(SHIFT_TIMER_INTERVAL, 5, false);  
 
       Gear currentGear;
       Gear desiredGear;
 
       Servo servo; 
+      uint8_t pin_servo; 
 
       unsigned long revmatchStartMicros = 0;
 
@@ -334,8 +323,21 @@ class Drivetrain {
       }
 
     public: 
+      Drivetrain(Transmission* leftTrans, Transmission* rightTrans, uint8_t pin_servo): pin_servo(pin_servo) {
+        this->leftTrans = leftTrans; 
+        this->rightTrans = rightTrans; 
+      };
+
       //Init both transeseses
-      void init(); 
+      void init() {
+        ESP32PWM::allocateTimer(0);
+        servo.setPeriodHertz(50);  // analoger Servo -> 50 Hz. NICHT hochdrehen.
+        servo.attach(pin_servo, 500, 2500);
+
+        leftTrans.init(); 
+        rightTrans.init(); 
+      }
+      
       //Calibrate both transesesees
       void calibrate(); 
 
