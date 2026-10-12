@@ -39,9 +39,9 @@ enum class Directive {
 struct Messages {
   Message left;
   Message right;
-  Messages(Message left, Message right) : left(left), right(right) {}
-  bool areEqual() { return (left == right);} 
-  Directive getDirective() {
+  Messages(const Message left, const Message right) : left(left), right(right) {}
+  bool areEqual() const { return (left == right);}
+  Directive getDirective() const {
     if (!areEqual()) return Directive::DoNothing; 
     if (left == Message::RequestingShiftUp)
       return Directive::ShiftUp;
@@ -74,7 +74,7 @@ struct RotationSpeeds {
   float input = 0;   
   float output = 0; 
 
-  RotationSpeeds(float input, float output) : input(input), output(output) {}
+  RotationSpeeds(const float input, const float output) : input(input), output(output) {}
 };
 
 class Transmission {
@@ -114,23 +114,23 @@ class Transmission {
     int64_t lastCount = 0; 
     float lastMeasuredInputRpm = 0; 
     
-    void write(const uint16_t pwm, const Direction direction) {
+    void write(const uint16_t pwm, const Direction direction) const {
       //Wir nehmen PWM-Werte von 0..1023 
       ledcWrite(ledCChannel, pwm); 
       digitalWrite(pin_motorDirection, direction == Direction::Forward ? HIGH : LOW); 
     }
 
-    float getTargetPwmByRpm(float rpm) {
+    float getTargetPwmByRpm(const float rpm) const {
       //Interpolate between calibratedMotorRPMs and their corresponding PWM values 
       //to find the PWM value that corresponds to the desired RPM 
       for (int i = 0; (i + 1) < std::size(calibratedMotorRPMs); i++) {
         if (rpm >= calibratedMotorRPMs[i] && rpm <= calibratedMotorRPMs[i+1]) {
-          float pwm1 = i * 100; 
-          float pwm2 = (i+1) * 100; 
-          float rpm1 = calibratedMotorRPMs[i]; 
-          float rpm2 = calibratedMotorRPMs[i+1]; 
-          if (rpm2 - rpm1 <= 0) return pwm1;  
-          float pwm = pwm1 + (rpm - rpm1) * (pwm2 - pwm1) / (rpm2 - rpm1); 
+          const float pwm1 = i * 100;
+          const float pwm2 = (i+1) * 100;
+          const float rpm1 = calibratedMotorRPMs[i];
+          const float rpm2 = calibratedMotorRPMs[i+1];
+          if (rpm2 - rpm1 <= 0) return pwm1;
+          const float pwm = pwm1 + (rpm - rpm1) * (pwm2 - pwm1) / (rpm2 - rpm1);
           return pwm;
         }
       }
@@ -144,7 +144,7 @@ class Transmission {
     }
 
     void IRAM_ATTR onSensorChange() {
-      unsigned long microsNow = micros(); 
+      const unsigned long microsNow = micros();
       lastPeriodMicros = microsNow - lastTickMicros; 
       lastTickMicros = microsNow; 
     }
@@ -153,17 +153,17 @@ class Transmission {
     //We need this seperate function because we cannot use getRotationalSpeeds() in the calibration process, 
     //because it uses the lastMeasuredInputRpm which is only updated every HALL_SAMPLE_INTERVAL_MS. 
     //DO NOT CALL APART FROM CALIBRATE()
-    float getInputRpmBlocking(uint16_t measureIntervalMs) {
-      int64_t startCount = encoder.getCount();
-      unsigned long startMicros = micros();
+    float getInputRpmBlocking(const uint16_t measureIntervalMs) {
+      const int64_t startCount = encoder.getCount();
+      const unsigned long startMicros = micros();
       delay(measureIntervalMs);
-      int64_t deltaCount = encoder.getCount() - startCount;
-      unsigned long deltaMicros = micros() - startMicros;
+      const int64_t deltaCount = encoder.getCount() - startCount;
+      const unsigned long deltaMicros = micros() - startMicros;
       return (deltaCount * 60000000.0f) / (deltaMicros * countsPerRev);
     } 
 
   public:
-    Transmission(uint8_t pin_motorPwm, uint8_t pin_motorDirection, uint8_t ledCChannel, uint8_t pin_photoElectricSpeedSensor, uint8_t pin_hallSensor1, uint8_t pin_hallSensor2): 
+    Transmission(const uint8_t pin_motorPwm, const uint8_t pin_motorDirection, const uint8_t ledCChannel, const uint8_t pin_photoElectricSpeedSensor, const uint8_t pin_hallSensor1, const uint8_t pin_hallSensor2):
       pin_motorPwm(pin_motorPwm), pin_motorDirection(pin_motorDirection), ledCChannel(ledCChannel), pin_photoElectricSpeedSensor(pin_photoElectricSpeedSensor), pin_hallSensor1(pin_hallSensor1), pin_hallSensor2(pin_hallSensor2) {
     }
 
@@ -228,7 +228,7 @@ class Transmission {
         return true;
     }
 
-    Message getMessage() {
+    Message getMessage() const {
       return this->message;
     }
 
@@ -251,7 +251,7 @@ class Transmission {
     RotationSpeeds getRotationalSpeeds() {
       //input
       if (hallTimer.fires()) {
-        int64_t now =  encoder.getCount(); 
+        const int64_t now =  encoder.getCount();
         const long delta = now - lastCount;
         lastCount = now; 
         lastMeasuredInputRpm = delta * 60000.0f / (HALL_SAMPLE_INTERVAL_MS * countsPerRev);
@@ -283,7 +283,7 @@ class Transmission {
       DriveMode -> Motor gets PWM from Remote Control, normal driving
       ShiftMode -> Motor just tries to RevMatch the output
       */
-    void update(uint16_t normalizedPwm, Direction direction) {
+    void update(const uint16_t normalizedPwm, const Direction direction) {
         if (!initialized) {
             Serial.println("Unable to update. Transmission is not initialized");
             delay(1000);
@@ -359,7 +359,7 @@ class Drivetrain {
 
       unsigned long revmatchStartMicros = 0;
 
-      Directive getTransMessages() {
+      Directive getTransMessages() const {
         return Messages(
           leftTrans.getMessage(), 
           rightTrans.getMessage() 
@@ -367,7 +367,7 @@ class Drivetrain {
       }
 
     public: 
-      Drivetrain(Transmission& leftTrans, Transmission& rightTrans, uint8_t pin_servo): 
+      Drivetrain(Transmission& leftTrans, Transmission& rightTrans, const uint8_t pin_servo):
         leftTrans(leftTrans), rightTrans(rightTrans), pin_servo(pin_servo) {
       };
 
@@ -408,7 +408,7 @@ class Drivetrain {
         calibrated = true;
       }
 
-      void initializeGearShift(Gear gear) {
+      void initializeGearShift(const Gear gear) {
         desiredGear = gear; 
         shiftTimer.reset(true); 
         leftTrans.setMode(Mode::Shift);
@@ -423,7 +423,7 @@ class Drivetrain {
         rightTrans.setMode(Mode::RevMatch); 
       }
 
-      void finalizeShift(Gear gear) {
+      void finalizeShift(const Gear gear) {
         currentGear = gear; 
         leftTrans.setCurrentGear(gear);
         rightTrans.setCurrentGear(gear);
@@ -460,7 +460,7 @@ class Drivetrain {
         leftTrans.update(leftTransPwm, direction);
         rightTrans.update(rightTransPwm, direction);
 
-        Directive directive = getTransMessages(); 
+        const Directive directive = getTransMessages();
         if (desiredGear == currentGear) {
           switch (directive) {
           case Directive::ShiftUp: {
@@ -509,8 +509,8 @@ class Drivetrain {
             }
             break;  
             case 4: {
-              int servoTargetus = desiredGear == Gear::First ? SERVO_MIDDLE_US - SERVO_TRAVEL_US : SERVO_MIDDLE_US + SERVO_TRAVEL_US;
-              servo.writeMicroseconds(servoTargetus);
+              const int servoTargetUs = desiredGear == Gear::First ? SERVO_MIDDLE_US - SERVO_TRAVEL_US : SERVO_MIDDLE_US + SERVO_TRAVEL_US;
+              servo.writeMicroseconds(servoTargetUs);
             }
             break; 
             case 5: {
