@@ -51,7 +51,7 @@ Leistung ist hier der Engpass: Der JGB37-520 gibt am 3S-Akku höchstens ~3,1 W m
 | **Fahrmotoren** | 2× JGB37-520, 12 V, 1600 min⁻¹, Untersetzung 6,25:1 (520er-Motor, 10 000 min⁻¹), Hall-Encoder (11 Impulse je Motorumdrehung laut Micro DC Motors) | Siehe [Motordaten](#motordaten-jgb37-520). Encoder für Geradeauslauf (geplant), Gangwechsel und Kalibrierung. In der Firmware steht `countsPerRev = 275` = 11 × 4 × 6,25 — passt zur Untersetzung, am eigenen Motor noch zu bestätigen ([src/test_encoder](../src/test_encoder/main.cpp)). |
 | **Motortreiber** | Cytron MDD10A, 2 Kanäle, 10 A dauernd, 5–30 V | Angesteuert per PWM + Richtungspin (Sign-Magnitude), so in der Firmware vorgesehen (`write()` in ShiftEnginge.h, geplant 20 kHz); das PWM-Setup ist noch offen. |
 | **Strommessung** | INA226 je Motor (optional, derzeit nicht eingeplant) | Für Telemetrie und die Lastkompensation der Akkuspannung. Die Schaltautomatik läuft nicht mehr über den Strom, sondern über die Drehzahl. Im Code noch nicht vorhanden. |
-| **Schaltservo** | Futaba S3003, analog, 50 Hz | Mitte 1500 µs = Neutral, 1. Gang 800 µs, 2. Gang 2200 µs (±700 µs, ShiftEnginge.h). Der Servotest ([src/test_servo](../src/test_servo/main.cpp)) fährt derzeit ±670 µs — Endlagen am eingebauten Getriebe ausmessen und beide Werte angleichen. |
+| **Schaltservo** | Futaba S3003, analog, 50 Hz | Mitte 1500 µs = Neutral, 1. Gang 800 µs, 2. Gang 2200 µs (±700 µs, ShiftEnginge.h). Der Servotest ([src/test_servo](../src/test_servo/main.cpp)) fährt derzeit ±670 µs — Endlagen am eingebauten Getriebe ausmessen und beide Werte angleichen. Wegen der 10-Bit-Auflösung stellt die Firmware real 781 / 1484 / 2187 µs, siehe [Bewusst nicht berücksichtigt](#bewusst-nicht-berücksichtigt). |
 | **Drehzahlsensorik** | Je Seite Motor-Encoder (Getriebeeingang) + Lichtschranke mit 32-Schlitz-Scheibe (Getriebeausgang) | Aus dem Verhältnis beider prüft die Firmware den Drehzahlabgleich beim Schalten. Die Lichtschranke erkennt keine Drehrichtung. |
 | **Rechner** | ESP32 (DevKit, `board = esp32dev`), Arduino-Framework | CAN (TWAI) für den Turm-Slave, genug Timer, eigene Logik für Mischer, Schaltautomatik, Turm, Sound. |
 | **Funk** | **nRF24L01+PA+LNA**, vorhandenes eigenes Protokoll | siehe eigenen Abschnitt unten |
@@ -309,6 +309,29 @@ kostet 4S–6S und Rechenaufwand. Deshalb die Motorbrücke im Chassis von Anfang
 Die Belastungsgrenze der Kettenglieder und des gedruckten Triebrads ist **keine**
 Auslegungsgrenze — auf Wunsch. Die Antriebsauslegung folgt der Fahrmechanik; wenn ein Kettenglied
 oder ein Zahn nachgibt, wird das Teil ersetzt oder verstärkt.
+
+**Auflösung des Schaltservo-Signals: 10 Bit** (Entscheidung vom 12.10.2026). ESP32Servo 1.2.1
+erzeugt den Servopuls per LEDC mit 50 Hz und 10 Bit, die 20-ms-Periode hat also 1024 Schritte zu
+19,53 µs. `writeMicroseconds()` rundet auf den nächstkleineren Schritt ab:
+
+| Stellung | Sollwert | real |
+|---|---|---|
+| 1. Gang | 800 µs | 781 µs |
+| Neutral | 1500 µs | 1484 µs |
+| 2. Gang | 2200 µs | 2187 µs |
+| Servotest −670 / +670 | 830 / 2170 µs | 820 / 2168 µs |
+
+Die Firmware fährt damit im 1. Gang 2 Schritte, im 2. Gang 1 Schritt weiter als der Servotest.
+Ein Schritt entspricht grob 1,8° am Servo (Annahme ~0,09°/µs, nicht gemessen). Bewusst bei 10 Bit
+geblieben, weil der Code so lesbarer bleibt und 1,8° für die Reibkupplungen als unkritisch gelten.
+
+Wieder aufgreifen, falls Neutral nicht sauber trennt (Kupplung schleift, Fahrzeug kriecht im
+Neutral, Kalibrierung misst unter Last), ein Gang nicht voll greift oder der Servo in einer
+Endlage brummt. Abhilfe ist 16 Bit mit 0,3 µs je Schritt: `servo.setTimerWidth(16)` direkt nach
+`servo.attach()`, unmittelbar gefolgt von `servo.writeMicroseconds(...)`. Die Reihenfolge ist
+nötig, weil `setTimerWidth()` in ESP32Servo 1.2.1 den aktuellen Wert falsch umrechnet (teilt
+durch die Bit-Differenz 6, statt mit 2⁶ = 64 zu multiplizieren). Bis dahin die Endlagen im
+19,5-µs-Raster ausmessen.
 
 ## Offene Punkte
 
