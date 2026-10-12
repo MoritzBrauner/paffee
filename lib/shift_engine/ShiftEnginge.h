@@ -20,6 +20,8 @@ constexpr int MOTOR_PWM_RESOLUTION_BITS = 10;
 
 constexpr unsigned long MAX_REVMATCH_TIMEOUT_MICROS = 2000UL * 1000;
 
+constexpr float CALIBRATION_MIN_RPM_AT_PWM_1000 = 500.0f;
+
 enum class Message {
   Happy,
   RequestingShiftUp,
@@ -83,6 +85,7 @@ class Transmission {
     float calibratedMotorRPMs[11] = {0};
     constexpr static uint16_t CALIBRATION_SETTLE_MS = 500;
     constexpr static uint16_t CALIBRATION_SAMPLE_INTERVAL_MS = 100;
+    constexpr static uint16_t REVMATCH_TOLERANCE_RPM = 20;
 
     Message message = Message::Happy;
 
@@ -188,64 +191,87 @@ class Transmission {
 
     //Calibrate Motor Speeds: 
     //Set Motor to a PWM Value an see how fast it spins at that speed 
-    void calibrate() {
+    bool calibrate() {
         if (!initialized) {
-          Serial.println("Unable to calibrate. ShiftEnginge ist not initialized");
-          return;
+          Serial.println("Unable to calibrate. Transmission ist not initialized");
+          return false;
         }
         Serial.println("Transmission calibration started...");
         for (int i = 0; i <= 10; i++) {
           write(i * 100, Direction::Forward);
           delay(CALIBRATION_SETTLE_MS);
           calibratedMotorRPMs[i] = getInputRpmBlocking(CALIBRATION_SAMPLE_INTERVAL_MS); 
-          Serial.printf("Measured Motor RPM for Signal %d: %f\n", i * 100, calibratedMotorRPMs[i]);
+          Serial.printf("Measured Motor RPM for PWM %d: %f\n", i * 100, calibratedMotorRPMs[i]);
         }
         write(0, Direction::Forward); 
         delay(CALIBRATION_SETTLE_MS);
         this->lastCount = encoder.getCount();
+        Serial.println("Transmission calibration finished. Now sanity-checking measured values...");
+        //Little Sanity Check of the values:
+        //If the check fails, the calibration is marked faulty
+        if (calibratedMotorRPMs[0] != 0) {
+          Serial.printf("Calibration Error: Motor RPM for PWM 0 (%f) is not 0\n", calibratedMotorRPMs[0]);
+          return false;
+        }
+        if (calibratedMotorRPMs[10] < CALIBRATION_MIN_RPM_AT_PWM_1000) {
+          Serial.printf("Calibration Error: Motor RPM for PWM 1000 (%f) is below the minimum threshold of %f\n", calibratedMotorRPMs[10], CALIBRATION_MIN_RPM_AT_PWM_1000);
+          return false;
+        }
+        for (int i = 0; i < 10; i++) {
+          if (calibratedMotorRPMs[i] > calibratedMotorRPMs[i+1]) {
+            Serial.printf("Calibration Error: Motor RPM for PWM %d (%f) is higher than for PWM %d (%f)\n", i * 100, calibratedMotorRPMs[i], (i+1) * 100, calibratedMotorRPMs[i+1]);
+            return false;
+          }
+        }
+        Serial.println("Sanity Check passed. Transmission is calibrated.");
         this->calibrated = true;
-        Serial.println("Transmission calibration finished.");
+        return true;
     }
 
     Message getMessage() {
       return this->message;
     }
 
-    void setMode(Mode mode) {
-      this->mode = mode; 
+    void setMode(const Mode m) {
+      this->mode = m;
       //clear message 
       this->message = Message::Happy; 
     }
 
-    void setTargetGear(Gear gear) {
+    void setTargetGear(const Gear gear) {
       this->targetGear = gear; 
       this->targetRatio = gear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND;
     }
 
-    void setCurrentGear(Gear gear) {
+    void setCurrentGear(const Gear gear) {
       this->currentGear = gear; 
       this->currentRatio = gear == Gear::First ? GEAR_RATIO_FIRST : GEAR_RATIO_SECOND;
     }
 
     RotationSpeeds getRotationalSpeeds() {
-      //RotationSpeeds rpms(lastMeasuredInputRpm, 0);
       //input
       if (hallTimer.fires()) {
-        long now =  encoder.getCount(); 
-        long delta = now - lastCount; 
+        int64_t now =  encoder.getCount(); 
+        const long delta = now - lastCount;
         lastCount = now; 
-        lastMeasuredInputRpm = (delta * 60000.0f) / (HALL_SAMPLE_INTERVAL_MS * countsPerRev);
+        lastMeasuredInputRpm = delta * 60000.0f / (HALL_SAMPLE_INTERVAL_MS * countsPerRev);
       }
       //output
-      //Erst den Zeitstempel kopieren, dann micros() lesen: Kommt die ISR dazwischen,
-      //waere lastTickMicros sonst neuer als microsNow und die Differenz liefe ueber.
-      unsigned long lastTick = lastTickMicros;
-      unsigned long microsNow = micros();
-      if (microsNow - lastTick > 1000UL * 1000) {
+      //Erst den Zeitstempel kopieren, dann micros() lesen: Kommt die ISR dazwischen, wäre lastTickMicros sonst neuer als microsNow und die Differenz liefe über.
+      const unsigned long lastTick = lastTickMicros;
+      const unsigned long microsNow = micros();
+      const unsigned long sinceLastTick = microsNow - lastTick;
+      const unsigned long lastPeriod = lastPeriodMicros;
+      //Idee dahinter: Wenn der letzte Tick länger her ist, als die Länge der letzten Periode,
+      //nehmen wir die Differenz zwischen jetzt und dem letzten Tick zur Berechnung
+      //Grund: vorher war fester Timeout von 1sek -> Drehzahl sprang womöglich von X direkt auf 0.
+      //Jetzt ist es smoooooth
+      if (lastPeriod == 0 || sinceLastTick > 1000UL * 1000) {
         lastMeasuredOutputRpm = 0;
       } else {
-        lastMeasuredOutputRpm = lastPeriodMicros == 0 ? 0 : 1000.0f * 1000 * 60 / lastPeriodMicros / 32; 
-      }  
+        const unsigned long effectivePeriod = std::max(lastPeriod, sinceLastTick);
+        lastMeasuredOutputRpm = 60000000.0f / effectivePeriod / 32;
+      }
       return RotationSpeeds(lastMeasuredInputRpm, lastMeasuredOutputRpm); 
     }
 
@@ -260,10 +286,12 @@ class Transmission {
     void update(uint16_t normalizedPwm, Direction direction) {
         if (!initialized) {
             Serial.println("Unable to update. Transmission is not initialized");
+            delay(1000);
             return;
         }
         if (!calibrated) {
             Serial.println("Unable to update. Transmission is not calibrated");
+            delay(1000);
             return;
         }
 
@@ -293,17 +321,17 @@ class Transmission {
               }
             }
             break;
-            //default: {
-            //  message = Message::Happy; // :) 
-            //}
+            default: ;
           }
         } else {
           //ignore Remote Control Input, just RevMatch the output RPM to the targetGearRatio
-          float targetPwm = getTargetPwmByRpm(rpms.output * (1/targetRatio));
+          const float targetPwm = getTargetPwmByRpm(rpms.output * (1/targetRatio));
           write(targetPwm, direction);
-          const uint8_t tolerance = 20;
           if (mode == Mode::RevMatch) {
-            if (fabsf(rpms.input) >= rpms.output * (1/targetRatio) - tolerance && fabsf(rpms.input) <= rpms.output * (1/targetRatio) + tolerance) {
+            const bool rpmDifferenceIsTolerable =
+              fabsf(rpms.input) >= rpms.output * (1/targetRatio) - REVMATCH_TOLERANCE_RPM &&
+              fabsf(rpms.input) <= rpms.output * (1/targetRatio) + REVMATCH_TOLERANCE_RPM;
+            if (rpmDifferenceIsTolerable) {
               message = Message::RevMatchCompleted; 
             } else {
               message = Message::Happy; 
@@ -314,7 +342,10 @@ class Transmission {
 }; 
 
 class Drivetrain {
-    private: 
+    private:
+      bool initialized = false;
+      bool calibrated = false;
+
       Transmission& leftTrans; 
       Transmission& rightTrans; 
 
@@ -348,21 +379,33 @@ class Drivetrain {
         servo.writeMicroseconds(SERVO_MIDDLE_US);
         //Init both transeseses
         leftTrans.init(); 
-        rightTrans.init(); 
+        rightTrans.init();
+        initialized = true;
       }
       
       //Calibrate both transesesees
       void calibrate() {
+        if (!initialized) {
+          Serial.println("Unable to calibrate. ShiftEnginge ist not initialized");
+          return;
+        }
         Serial.println("Calibrating Drivetrain..");
         servo.writeMicroseconds(SERVO_MIDDLE_US);
         delay(500);
         Serial.println("Left Transmission..");
-        leftTrans.calibrate(); 
+        if(!leftTrans.calibrate()) {
+          Serial.println("Left Transmission calibration failed. Aborting Drivetrain calibration.");
+          return; 
+        } 
         Serial.println("Right Transmission..");
-        rightTrans.calibrate(); 
+        if(!rightTrans.calibrate()) {
+          Serial.println("Right Transmission calibration failed. Aborting Drivetrain calibration.");
+          return; 
+        }
         delay(500);
         Serial.println("Drivetrain calibration finished. Shifting into first gear.");
         initializeGearShift(Gear::First);
+        calibrated = true;
       }
 
       void initializeGearShift(Gear gear) {
@@ -389,6 +432,16 @@ class Drivetrain {
       }
 
       void update(uint8_t stickValueX, uint8_t stickValueY) {
+        if (!initialized) {
+          Serial.println("Unable to update. Drivetrain is not initialized");
+          delay(1000);
+          return;
+        }
+        if (!calibrated) {
+          Serial.println("Unable to update. Drivetrain is not calibrated");
+          delay(1000);
+          return;
+        }
         //Find a way to pass Remote input into the engine (maybe with parameters of update)
         //Handle Turning, set desired PWM for both Motors accordingly 
         // ->both update() methods of the motors should only get their own PWM signal 
@@ -418,7 +471,8 @@ class Drivetrain {
             initializeGearShift(Gear::First);
           }
           break;
-        }
+            default: ;
+          }
           //leftTrans.setMode(Mode::Shift);
           //rightTrans.setMode(Mode::Shift);
         } else {
@@ -464,7 +518,8 @@ class Drivetrain {
               finalizeShift(desiredGear);
               //currentGear = Gear::First; 
             }
-            break;  
+            break;
+            default: ;
           }
         }
       }
