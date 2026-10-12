@@ -80,6 +80,8 @@ class Transmission {
     bool calibrated = false;
 
     float calibratedMotorRPMs[11] = {0};
+    constexpr static uint16_t CALIBRATION_SETTLE_MS = 500;
+    constexpr static uint16_t CALIBRATION_SAMPLE_INTERVAL_MS = 100;
 
     Message message = Message::Happy;
 
@@ -92,6 +94,7 @@ class Transmission {
 
     uint8_t pin_motorPwm;
     uint8_t pin_motorDirection;
+    uint8_t ledCChannel; 
 
     uint8_t pin_photoElectricSpeedSensor; 
     volatile unsigned long lastTickMicros = 0; 
@@ -100,18 +103,16 @@ class Transmission {
 
     uint8_t pin_hallSensor1; 
     uint8_t pin_hallSensor2; 
-    Timer hallTimer = Timer(50); 
+    Timer hallTimer = Timer(HALL_SAMPLE_INTERVAL_MS);
     static constexpr float countsPerRev = 275.0f; 
     static constexpr unsigned long HALL_SAMPLE_INTERVAL_MS = 50;
     ESP32Encoder encoder; 
     int64_t lastCount = 0; 
     float lastMeasuredInputRpm = 0; 
-
-    //RotationSpeeds rpms;
     
-    void write(const __uint16_t pwm, const Direction direction) {
+    void write(const uint16_t pwm, const Direction direction) {
       //Wir nehmen PWM-Werte von 0..1023 
-      //ledcWrite(0, pwm); 
+      ledcWrite(ledCChannel, pwm); 
       digitalWrite(pin_motorDirection, direction == Direction::Forward ? HIGH : LOW); 
     }
 
@@ -144,9 +145,22 @@ class Transmission {
       lastTickMicros = microsNow; 
     }
 
+    //Helper Function to get inputRpm. Blocking. 
+    //We need this seperate function because we cannot use getRotationalSpeeds() in the calibration process, 
+    //because it uses the lastMeasuredInputRpm which is only updated every HALL_SAMPLE_INTERVAL_MS. 
+    //DO NOT CALL APART FROM CALIBRATE()
+    float getInputRpmBlocking(uint16_t measureIntervalMs) {
+      int64_t startCount = encoder.getCount();
+      unsigned long startMicros = micros();
+      delay(measureIntervalMs);
+      int64_t deltaCount = encoder.getCount() - startCount;
+      unsigned long deltaMicros = micros() - startMicros;
+      return (deltaCount * 60000000.0f) / (deltaMicros * countsPerRev);
+    } 
+
   public:
-    Transmission(uint8_t pin_motorPwm, uint8_t pin_motorDirection,uint8_t pin_photoElectricSpeedSensor, uint8_t pin_hallSensor1, uint8_t pin_hallSensor2): 
-      pin_motorPwm(pin_motorPwm), pin_motorDirection(pin_motorDirection), pin_photoElectricSpeedSensor(pin_photoElectricSpeedSensor), pin_hallSensor1(pin_hallSensor1), pin_hallSensor2(pin_hallSensor2) {
+    Transmission(uint8_t pin_motorPwm, uint8_t pin_motorDirection, uint8_t ledCChannel, uint8_t pin_photoElectricSpeedSensor, uint8_t pin_hallSensor1, uint8_t pin_hallSensor2): 
+      pin_motorPwm(pin_motorPwm), pin_motorDirection(pin_motorDirection), ledCChannel(ledCChannel), pin_photoElectricSpeedSensor(pin_photoElectricSpeedSensor), pin_hallSensor1(pin_hallSensor1), pin_hallSensor2(pin_hallSensor2) {
     }
 
     void init() {
@@ -163,8 +177,9 @@ class Transmission {
       ESP32Encoder::useInternalWeakPullResistors = UP;
       encoder.attachFullQuad(pin_hallSensor1, pin_hallSensor2); 
       encoder.clearCount(); 
-      //Initialize Timers
-      hallTimer = Timer(HALL_SAMPLE_INTERVAL_MS); 
+      //Handle LedC API 
+      ledcSetup(ledCChannel, MOTOR_PWM_FREQUENCY, 10); // 10 bit resolution
+      ledcAttachPin(pin_motorPwm, ledCChannel);
       //Finalize
       this->initialized = true;
       Serial.println("Initialization completed."); 
@@ -178,18 +193,15 @@ class Transmission {
           return;
         }
         Serial.println("Transmission calibration started...");
-        Serial.println("Transmission Stop");
-        write(0, Direction::Forward);
-        delay(500);
-        for (int i = 1; i <= 10; i++) {
-          float rpm = getRotationalSpeeds().input;
-          Serial.printf("Measured Motor RPM for Signal %d: %f", (i-1)*100, rpm);
-          calibratedMotorRPMs[i-1] = rpm;
+        for (int i = 0; i <= 10; i++) {
           write(i * 100, Direction::Forward);
-          delay(500);
+          delay(CALIBRATION_SETTLE_MS);
+          calibratedMotorRPMs[i] = getInputRpmBlocking(CALIBRATION_SAMPLE_INTERVAL_MS); 
+          Serial.printf("Measured Motor RPM for Signal %d: %f\n", i * 100, calibratedMotorRPMs[i]);
         }
-        calibratedMotorRPMs[10] = getRotationalSpeeds().input;
         write(0, Direction::Forward); 
+        delay(CALIBRATION_SETTLE_MS);
+        this->lastCount = encoder.getCount();
         this->calibrated = true;
         Serial.println("Transmission calibration finished.");
     }
@@ -218,7 +230,7 @@ class Transmission {
       //RotationSpeeds rpms(lastMeasuredInputRpm, 0);
       //input
       if (hallTimer.fires()) {
-        long now = encoder.getCount(); 
+        long now =  encoder.getCount(); 
         long delta = now - lastCount; 
         lastCount = now; 
         lastMeasuredInputRpm = (delta * 60000.0f) / (HALL_SAMPLE_INTERVAL_MS * countsPerRev);
@@ -302,13 +314,13 @@ class Transmission {
 
 class Drivetrain {
     private: 
-      Transmission leftTrans; 
-      Transmission rightTrans; 
+      Transmission& leftTrans; 
+      Transmission& rightTrans; 
 
       SingleUseStagedTimer shiftTimer = SingleUseStagedTimer(SHIFT_TIMER_INTERVAL, 5, false);  
 
-      Gear currentGear;
-      Gear desiredGear;
+      Gear currentGear = Gear::Neutral;
+      Gear desiredGear = Gear::Neutral;
 
       Servo servo; 
       uint8_t pin_servo; 
@@ -323,23 +335,34 @@ class Drivetrain {
       }
 
     public: 
-      Drivetrain(Transmission* leftTrans, Transmission* rightTrans, uint8_t pin_servo): pin_servo(pin_servo) {
-        this->leftTrans = leftTrans; 
-        this->rightTrans = rightTrans; 
+      Drivetrain(Transmission& leftTrans, Transmission& rightTrans, uint8_t pin_servo): 
+        leftTrans(leftTrans), rightTrans(rightTrans), pin_servo(pin_servo) {
       };
 
-      //Init both transeseses
       void init() {
+        //Handle Srevo Initialization:
         ESP32PWM::allocateTimer(0);
         servo.setPeriodHertz(50);  // analoger Servo -> 50 Hz. NICHT hochdrehen.
         servo.attach(pin_servo, 500, 2500);
-
+        servo.writeMicroseconds(SERVO_MIDDLE_US);
+        //Init both transeseses
         leftTrans.init(); 
         rightTrans.init(); 
       }
       
       //Calibrate both transesesees
-      void calibrate(); 
+      void calibrate() {
+        Serial.println("Calibrating Drivetrain..");
+        servo.writeMicroseconds(SERVO_MIDDLE_US);
+        delay(500);
+        Serial.println("Left Transmission..");
+        leftTrans.calibrate(); 
+        Serial.println("Right Transmission..");
+        rightTrans.calibrate(); 
+        delay(500);
+        Serial.println("Drivetrain calibration finished. Shifting into first gear.");
+        initializeGearShift(Gear::First);
+      }
 
       void initializeGearShift(Gear gear) {
         desiredGear = gear; 
@@ -375,6 +398,14 @@ class Drivetrain {
         // If 2x ShiftDown -> ShiftDown 
         // else -> stay in current gear? -> this state is often reached while turning 
         //Pass down to engines, which gear we are in 
+
+        //update both transmissions with their respective PWM values and directions
+        Direction direction = Direction::Forward; //placeholder for now, later we will get this from the remote control input
+        uint16_t leftTransPwm = 0; //placeholder for now, later we will get this from the remote control input
+        uint16_t rightTransPwm = 0; //placeholder for now, later we will get this from the remote control input
+        leftTrans.update(leftTransPwm, direction);
+        rightTrans.update(rightTransPwm, direction);
+
         Directive directive = getTransMessages(); 
         if (desiredGear == currentGear) {
           switch (directive) {
@@ -414,7 +445,7 @@ class Drivetrain {
               if (directive == Directive::EngageClutch) {
                 Serial.println("RevMatch completed, advancing shiftTimer");
                 shiftTimer.advance();  
-              } else 
+              } else  
               if (micros() - revmatchStartMicros > MAX_REVMATCH_TIMEOUT_MICROS) {
                 Serial.println("RevMatch timeout, advancing shiftTimer");
                 shiftTimer.advance();  
