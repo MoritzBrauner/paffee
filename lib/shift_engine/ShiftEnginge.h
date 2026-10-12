@@ -16,6 +16,7 @@ constexpr unsigned long SHIFT_TIMER_INTERVAL = 200;
 
 //constexpr int SAMPLE_INTERVAL_MS = 50;
 constexpr int MOTOR_PWM_FREQUENCY = 20000; //Check later for Correctness 
+constexpr int MOTOR_PWM_RESOLUTION_BITS = 10;
 
 constexpr unsigned long MAX_REVMATCH_TIMEOUT_MICROS = 2000UL * 1000;
 
@@ -178,7 +179,7 @@ class Transmission {
       encoder.attachFullQuad(pin_hallSensor1, pin_hallSensor2); 
       encoder.clearCount(); 
       //Handle LedC API 
-      ledcSetup(ledCChannel, MOTOR_PWM_FREQUENCY, 10); // 10 bit resolution
+      ledcSetup(ledCChannel, MOTOR_PWM_FREQUENCY, MOTOR_PWM_RESOLUTION_BITS);
       ledcAttachPin(pin_motorPwm, ledCChannel);
       //Finalize
       this->initialized = true;
