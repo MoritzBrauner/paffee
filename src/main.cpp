@@ -2,6 +2,13 @@
 #include <ESP32Servo.h>
 #include <Timer.h>
 
+//new 
+constexpr uint8_t CHANNEL_MOTOR_LEFT = 2;
+constexpr uint8_t CHANNEL_MOTOR_RIGHT = 3;
+
+
+
+//old 
 struct Lichtschranke {
   int pin; 
   volatile unsigned long lastTickTimestampMicros = 0; 
