@@ -27,6 +27,7 @@ uint8_t StagedTimer::getStage() {
 
 SingleUseStagedTimer::SingleUseStagedTimer(unsigned long ms, uint8_t stages, bool enabled): StagedTimer(ms, stages) {
     this->enabled = enabled; 
+    this->paused = false;
 }
 
 uint8_t SingleUseStagedTimer::getStage() {
