@@ -18,7 +18,7 @@ Kettenspurweite ~262 mm (300 mm Breite minus eine Kettenbreite).
 | Turmantrieb + Höhenrichtung | 0,20 |
 | BB-Einheit | 0,15 |
 | Akku (Reserve für die Ausbaustufe 3S Li-Ion; ein LiPo 1500 mAh wiegt ~0,12 kg) | 0,55 |
-| Elektronik, Kabel, Lautsprecher | 0,25 |
+| Elektronik, Kabel | 0,25 |
 | Wellen, Lager, Schrauben, Federstahl | 0,45 |
 | **Erwartet** | **5,30** |
 
@@ -53,7 +53,7 @@ Leistung ist hier der Engpass: Der JGB37-520 gibt am 3S-Akku höchstens ~3,1 W m
 | **Strommessung** | INA226 je Motor (optional, derzeit nicht eingeplant) | Für Telemetrie und die Lastkompensation der Akkuspannung. Die Schaltautomatik läuft nicht mehr über den Strom, sondern über die Drehzahl. Im Code noch nicht vorhanden. |
 | **Schaltservo** | Futaba S3003, analog, 50 Hz | Mitte 1500 µs = Neutral, 1. Gang 800 µs, 2. Gang 2200 µs (±700 µs, ShiftEnginge.h). Der Servotest ([src/test_servo](../src/test_servo/main.cpp)) fährt derzeit ±670 µs — Endlagen am eingebauten Getriebe ausmessen und beide Werte angleichen. Wegen der 10-Bit-Auflösung stellt die Firmware real 781 / 1484 / 2187 µs, siehe [Bewusst nicht berücksichtigt](#bewusst-nicht-berücksichtigt). |
 | **Drehzahlsensorik** | Je Seite Motor-Encoder (Getriebeeingang) + Lichtschranke mit 32-Schlitz-Scheibe (Getriebeausgang) | Aus dem Verhältnis beider prüft die Firmware den Drehzahlabgleich beim Schalten. Die Lichtschranke erkennt keine Drehrichtung. |
-| **Rechner** | ESP32 (DevKit, `board = esp32dev`), Arduino-Framework | CAN (TWAI) für den Turm-Slave, genug Timer, eigene Logik für Mischer, Schaltautomatik, Turm, Sound. |
+| **Rechner** | ESP32 (DevKit, `board = esp32dev`), Arduino-Framework | CAN (TWAI) für den Turm-Slave, genug Timer, eigene Logik für Mischer, Schaltautomatik, Turm. |
 | **Funk** | **nRF24L01+PA+LNA**, vorhandenes eigenes Protokoll | siehe eigenen Abschnitt unten |
 | **Turm-Slave** | ESP32-C3 im Turm, per CAN | halbiert die nötigen Schleifringkreise |
 | **Spannungsebenen** | 6 V/5 A UBEC für Servos, 5 V/3 A für Logik, getrennte Zuleitungen ab Akku | Servo-Stromspitzen dürfen nie über die Logikschiene laufen. Motor-Encoder an **3,3 V**, nicht 5 V — die ESP32-GPIOs sind nicht 5-V-fest. |
@@ -131,7 +131,7 @@ Was das heißt:
 | Turmantrieb | 1,5 |
 | BB-Einheit | 3,0 |
 | Servos | 2,0 |
-| Elektronik/Sound | 1,0 |
+| Elektronik | 1,0 |
 | **Spitze** | **14,5 A = 161 W bei 11,1 V** |
 
 Fahrbetrieb mit 0,5 A Grundlast (Elektronik, Funk, Servo in Ruhe, Annahme): Ebene im hohen Gang

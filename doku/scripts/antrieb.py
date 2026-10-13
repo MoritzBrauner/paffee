@@ -25,7 +25,7 @@ WEIGHTS = [
     ("Turmantrieb + Hoehenrichtung", 0.20),
     ("BB-Einheit", 0.15),
     ("Akku (Reserve Ausbaustufe 3S Li-Ion; LiPo 1500 mAh ~0,12 kg)", 0.55),
-    ("Elektronik, Kabel, Lautsprecher", 0.25),
+    ("Elektronik, Kabel", 0.25),
     ("Wellen, Lager, Schrauben, Federstahl", 0.45),
 ]
 DESIGN_MASS = 7.0          # Auslegungsmasse mit Reserve
@@ -54,7 +54,7 @@ I_SV = 47 / 13            # Seitenvorgelege
 GEARS = [("hoch (2. Gang, 28:32)", 32 / 28 * I_SV), ("niedrig (1. Gang, 13:47)", 47 / 13 * I_SV)]
 
 BASE_A = 0.5              # Grundlast Elektronik, Funk, Servo in Ruhe (Annahme)
-PEAK_LOADS = [("Turmantrieb", 1.5), ("BB-Einheit", 3.0), ("Servos", 2.0), ("Elektronik/Sound", 1.0)]
+PEAK_LOADS = [("Turmantrieb", 1.5), ("BB-Einheit", 3.0), ("Servos", 2.0), ("Elektronik", 1.0)]
 PACK_AH = 1.5             # ein 3S-Airsoft-Pack, 1500 mAh
 PACK_USABLE = 0.8
 
