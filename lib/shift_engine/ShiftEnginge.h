@@ -117,7 +117,7 @@ class Transmission {
     void write(const uint16_t pwm, const Direction direction) const {
       //Wir nehmen PWM-Werte von 0..1023 
       ledcWrite(ledCChannel, pwm); 
-      digitalWrite(pin_motorDirection, direction == Direction::Forward ? HIGH : LOW); 
+      digitalWrite(pin_motorDirection, direction == Direction::Forward ? LOW : HIGH); 
     }
 
     float getTargetPwmByRpm(const float rpm) const {

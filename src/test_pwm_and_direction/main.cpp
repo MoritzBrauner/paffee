@@ -1,6 +1,8 @@
 #include <Arduino.h>
 
 //Litle Test-Program to test PWM and direction control of the motor driver for 1 motor 
+//Wichtiges Learning aus dem Test: 
+//Richhtungs-Pin am MDD10A ist invertiert. HIGH heißt rückwärts. Ist also mehr ein "Rückwärtsfahrschalter" als ein Richtungsgeber 
 
 constexpr uint8_t CHANNEL_MOTOR = 0;
 constexpr uint16_t MOTOR_PWM_FREQUENCY = 20000;
@@ -20,11 +22,12 @@ void setup() {
   Serial.println("Setup - End");
 }
 
-//direction true/false is enough for the test 
-bool direction = true;
+//direction true/false is enough for the test
+//false is forward 
+bool direction = false;
 
 void loop() {
-  Serial.printf("Richtung: %s\n", direction ? "Vorwärts" : "Rückwärts");
+  Serial.printf("Richtung: %s\n", !direction ? "Vorwärts" : "Rückwärts");
   digitalWrite(PIN_MOTOR_DIRECTION, direction ? HIGH : LOW);
 
   for (int pwm = 0; pwm < 1000; pwm += 100) {

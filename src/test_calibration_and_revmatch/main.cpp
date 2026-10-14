@@ -179,8 +179,8 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(PIN_PHOTOELECTRIC_SENSOR), onSensorChangeISR, RISING); 
   
   pinMode(PIN_MOTOR_DIRECTION, OUTPUT);
-  Serial.println("Setting motor direction to HIGH (forward)");
-  digitalWrite(PIN_MOTOR_DIRECTION, HIGH);
+  Serial.println("Setting motor direction to LOW (forward)");
+  digitalWrite(PIN_MOTOR_DIRECTION, LOW);
 
   ESP32Encoder::useInternalWeakPullResistors = UP;  
   encoder.attachFullQuad(PIN_HALL_SENSOR_1, PIN_HALL_SENSOR_2);
