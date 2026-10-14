@@ -196,7 +196,6 @@ void setup() {
   firstGearSelected = rawGearReading = digitalRead(PIN_GEAR_INPUT) == HIGH;
 
   Serial.println("Setup - End");
-  Serial.println("t_ms;zielgang;abtrieb_rpm;soll_motor_rpm;ist_motor_rpm;abw_rpm;pwm;toleranz");
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -260,7 +259,8 @@ void loop() {
     }
 
     if (printTimer.fires()) {
-        Serial.printf("%lu;%d;%.1f;%.1f;%.1f;%+.1f;%lu;%s\n", nowMs, firstGearSelected ? 1 : 2,
-                      rpms.output, targetInputRpm, rpms.input, deviation, (unsigned long) targetPwm, inTolerance ? "OK" : "--");
+        //Feste Feldbreiten, damit die Spalten im seriellen Monitor untereinander stehen
+        Serial.printf("Abtrieb: %7.1f rpm    Soll Motor: %7.1f rpm    Ist Motor: %7.1f rpm    Abweichung: %+7.1f rpm    PWM: %4lu    %s\n",
+                      rpms.output, targetInputRpm, rpms.input, deviation, (unsigned long) targetPwm, inTolerance ? "in Toleranz" : "");
     }
 }
