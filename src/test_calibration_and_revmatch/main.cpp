@@ -15,7 +15,8 @@ constexpr uint16_t MOTOR_PWM_FREQUENCY = 20000;
 //  26     Motor-DIR
 //  27     Lichtschranke    Modul an 3V3, die GPIOs sind nicht 5-V-fest
 //  14     Gang-Schalter    gegen GND, interner Pull-up; offen = 1. Gang, geschlossen = 2. Gang
-//Weicht bis auf 32/33 von der Pinbelegung in doku/06-antrieb-elektronik.md ab.
+//32/33/25/26/27 entsprechen Getriebe links in doku/08-esp32-pinbelegung.md; der Gang-Schalter auf 14 ist
+//nur fuer den Pruefstand (spaeter Hoehenservo).
 constexpr uint8_t PIN_HALL_SENSOR_1 = 32;
 constexpr uint8_t PIN_HALL_SENSOR_2 = 33;
 constexpr uint8_t PIN_MOTOR_PWM = 25;

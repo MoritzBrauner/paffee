@@ -67,6 +67,7 @@ Schaltautomatik liegt in [lib/shift_engine/](../lib/shift_engine/).
 | [05-quellen.md](05-quellen.md) | Quellen, getrennt nach belegt und angenommen |
 | [06-antrieb-elektronik.md](06-antrieb-elektronik.md) | Gewicht, Zugkraftbedarf, Motoren, Akku, Getriebe und Schaltung, Turm, Funk und Failsafe |
 | [07-wanne.md](07-wanne.md) | Wanne und Turm: Stand CAD, Panther-Winkel als Referenz |
+| [08-esp32-pinbelegung.md](08-esp32-pinbelegung.md) | ESP32-Board, Pinbelegung an den Stiftleisten und nach Baugruppe, GPIO-Übersicht, Fernbedienung |
 
 | Asset | Inhalt |
 |---|---|
@@ -74,6 +75,8 @@ Schaltautomatik liegt in [lib/shift_engine/](../lib/shift_engine/).
 | [assets/laufwerk_m24_1zu11.svg](assets/laufwerk_m24_1zu11.svg) | Bauschablone Laufwerk — **veraltet (1:11)** |
 | [assets/panther_maße_original.jpg](assets/panther_maße_original.jpg) | Maßzeichnung Panther (russisch beschriftet): Seite, Draufsicht, Front, Heck mit Hauptmaßen, Plattenstärken und Winkeln |
 | [assets/panther_maße_formular.pdf](assets/panther_maße_formular.pdf) | dieselbe Zeichnung mit ausgeblendeten Maßen, zum Eintragen eigener Werte |
+| [assets/esp32_pinout.png](assets/esp32_pinout.png) | Pinout des NodeMCU-ESP32 (38 Pins) |
+| [assets/fernbedienung.jpeg](assets/fernbedienung.jpeg) | Sender aus dem Gartenbahn-Projekt |
 
 ## Konventionen
 

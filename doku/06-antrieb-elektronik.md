@@ -273,73 +273,10 @@ optional:
 - **Watchdog** im MCU. Treiber so verdrahten, dass ein Reset Stillstand bedeutet: Pulldown auf PWM,
   nicht Pullup.
 
-## Pinbelegung ESP32 (vorläufig)
+## Pinbelegung ESP32
 
-Stand 13.10.2026, gegen die Boot- und Peripherie-Regeln des ESP32 geprüft, aber noch nicht
-verdrahtet. Sie geht von Annahmen aus, die vom Rest dieser Doku abweichen:
-
-- **Board:** 38-Pin-DevKitC mit ESP32-WROOM-32. Auf einem WROVER-Modul sind 16/17 vom PSRAM
-  belegt. Auf dem 30-Pin-„DOIT DevKit V1“ ist GPIO0 nicht herausgeführt, dort muss TMC-ENN fest auf
-  GND.
-- **Turm direkt am Haupt-ESP:** kein Turm-Slave, kein CAN, kein AS5600. Das weicht von den
-  Abschnitten Architektur und Turm ab, die Entscheidung ist noch offen.
-- **BB-Einheit mit eingebautem Mikroschalter:** Motor über MOSFET, Schalter als Eingang.
-
-Nutzbar sind 24 GPIOs, ohne 1/3 (USB-Seriell) und 6–11 (Flash). Belegt sind alle 24, es gibt
-keine Reserve.
-
-| GPIO | Signal | Beschaltung / Hinweis |
-|---|---|---|
-| 32 / 33 | Encoder links A / B | wie [src/test_encoder](../src/test_encoder/main.cpp) |
-| 25 / 26 | Encoder rechts A / B | |
-| 18 / 4 | Lichtschranke links / rechts | Module mit 3,3 V betreiben, die GPIOs sind nicht 5-V-fest |
-| 23 / 27 | Motor-PWM links / rechts (LEDC-Kanal 2 / 3) | je 10 kΩ Pull-down |
-| 5 / 21 | Motor-DIR links / rechts | |
-| 13 | Schaltservo (LEDC-Kanal 0) | 10 kΩ Pull-down |
-| 19 | Höhenservo (LEDC-Kanal 1) | 10 kΩ Pull-down; nur 50 Hz, siehe unten |
-| 16 / 17 / 34 | nRF24 SCK / MOSI / MISO | |
-| 15 | nRF24 CSN | Pull-up beim Reset hält den nRF abgewählt |
-| 14 | nRF24 CE | 10 kΩ Pull-down |
-| 35 | nRF24 IRQ | 10 kΩ Pull-up (34–39 haben keine internen) |
-| 2 | Turm STEP (LEDC-Kanal 4) | |
-| 22 | Turm DIR | |
-| 0 | TMC2209-ENN | als Open-Drain mit 10 kΩ Pull-up; das Treibermodul darf EN nicht gegen GND ziehen (vorher messen) |
-| 12 | BB-MOSFET-Gate (bei PWM-Begrenzung LEDC-Kanal 6) | 10 kΩ Pull-down direkt am Gate, nie ein Modul mit Pull-up |
-| 36 | Akku-Spannung (ADC1) | Teiler 47 kΩ / 10 kΩ + 100 nF, hinter dem Hauptschalter |
-| 39 | BB-Mikroschalter | externer Pull-up |
-
-Gründe für die Zuordnung:
-
-- **Boot-Pins** tragen nur Signale, deren Ruhepegel zum Pin passt. GPIO0 muss beim Reset high
-  sein, sonst Download-Modus (ENN mit Pull-up = Treiber aus). GPIO2 muss zum Flashen low sein
-  (STEP ruht low). GPIO12 muss beim Reset low sein, sonst wählt der Chip 1,8-V-Flash und bootet
-  nicht (Gate mit Pull-down = BB aus). GPIO5 und 15 haben beim Reset einen Pull-up und steuern nur
-  das SDIO-Timing bzw. das Boot-Log.
-- **nRF-CSN nicht auf GPIO0:** Ein stromloses Funkmodul könnte den Pin beim Start nach unten
-  ziehen, und die BOOT-Taste würde einen aktiv getriebenen Pin kurzschließen.
-- **16/17** spricht der Core beim Booten kurz als PSRAM-Leitungen an. Deshalb liegen dort nur nRF
-  SCK und MOSI, das ist harmlos, solange CSN high ist. Die Motor-PWMs liegen deshalb nicht dort.
-- **34–39** sind reine Eingänge ohne interne Pull-ups. Auf 36/39 erzeugt das Einschalten des ADC
-  Glitches von etwa 80 ns. Damit der Mikroschalter auf 39 per Interrupt laufen kann, in `setup()`
-  einmal `adc_power_acquire()` aufrufen (kostet etwa 1 mA).
-- **LEDC:** Servos auf 0/1 (Timer 0, 50 Hz), Motoren auf 2/3 (Timer 1, 20 kHz), STEP auf 4
-  (Timer 2), BB-PWM auf 6 (Timer 3). Kanal 5 frei lassen, er teilt sich den Timer mit STEP. Der
-  Höhenservo muss bei 50 Hz bleiben, sonst bleibt ESP32Servo wegen `allocateTimer(0)` in einer
-  Endlosschleife hängen.
-
-Folgen für die Firmware:
-
-- nRF24 auf einem eigenen SPI-Bus starten: `SPIClass radioSpi(HSPI); radioSpi.begin(16, 34, 17, 15);`.
-  Ein `SPI.begin()` ohne Pins würde 18/19/23/5 belegen, also Lichtschranke, Höhenservo und Motor-PWM.
-- `Transmission links(23, 5, 2, 18, 32, 33)`, `Transmission rechts(27, 21, 3, 4, 25, 26)`,
-  `Drivetrain drivetrain(links, rechts, 13)`.
-- [src/test_servo](../src/test_servo/main.cpp) nutzt noch GPIO5 für den Servo, das geht auf 13.
-
-Reserve gewinnen, falls später ein Turm-Referenzschalter dazukommt: den nRF-IRQ pollen statt per
-Interrupt zu nutzen. Dann wird 35 frei, ein Eingang mit externem Pull-up, passend für einen
-Hall-Schalter. TMC-ENN fest auf GND zu legen macht zwar GPIO0 frei (der Treiber ist dann dauerhaft
-bestromt, bewegt sich ohne STEP aber nicht), GPIO0 taugt aber nur für Signale, die beim Reset
-sicher high sind, also nicht für einen Schalter.
+Board, Pinbelegung, GPIO-Übersicht und Fernbedienung stehen in
+[08-esp32-pinbelegung.md](08-esp32-pinbelegung.md).
 
 ## Elektrik-Details, die sonst später wehtun
 
@@ -404,7 +341,7 @@ durch die Bit-Differenz 6, statt mit 2⁶ = 64 zu multiplizieren). Bis dahin die
 ## Offene Punkte
 
 - Turmarchitektur entscheiden: Turm-Slave per CAN oder Turm direkt am Haupt-ESP, wie in der
-  [vorläufigen Pinbelegung](#pinbelegung-esp32-vorläufig) angenommen. Danach die Abschnitte
+  [Pinbelegung](08-esp32-pinbelegung.md) angenommen. Danach die Abschnitte
   Architektur, Turm und Schussfunktion nachziehen
 - Für die finale Version ein PCB mit Steckplätzen je Baugruppe statt Einzelverdrahtung (in
   Überlegung). Die Pull-ups und Pull-downs aus der Pinbelegung gleich mit vorsehen, den DevKit
