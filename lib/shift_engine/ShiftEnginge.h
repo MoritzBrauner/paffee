@@ -183,6 +183,7 @@ class Transmission {
       encoder.clearCount(); 
       //Handle LedC API 
       ledcSetup(ledCChannel, MOTOR_PWM_FREQUENCY, MOTOR_PWM_RESOLUTION_BITS);
+      ledcWrite(ledCChannel, 0);
       ledcAttachPin(pin_motorPwm, ledCChannel);
       //Finalize
       this->initialized = true;
