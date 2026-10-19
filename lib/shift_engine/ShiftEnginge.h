@@ -12,6 +12,9 @@ constexpr float GEAR_RATIO_SECOND = 28.0f / 32;
 constexpr int SERVO_MIDDLE_US = 1500;
 constexpr int SERVO_TRAVEL_US = 700;
 
+//0...255
+constexpr uint8_t STICK_MIDDLE_TOLERANCE = 50; 
+
 constexpr unsigned long SHIFT_TIMER_INTERVAL = 200; 
 
 //constexpr int SAMPLE_INTERVAL_MS = 50;
@@ -77,6 +80,10 @@ struct RotationSpeeds {
   RotationSpeeds(const float input, const float output) : input(input), output(output) {}
 };
 
+uint16_t capValue0To1023(uint16_t value) {
+  if (value > 1023) return 1023; 
+  return value; 
+}
 class Transmission {
   private:
     bool initialized = false;
@@ -432,17 +439,7 @@ class Drivetrain {
         rightTrans.setMode(Mode::Drive); 
       }
 
-      void update(uint8_t stickValueX, uint8_t stickValueY) {
-        if (!initialized) {
-          Serial.println("Unable to update. Drivetrain is not initialized");
-          delay(1000);
-          return;
-        }
-        if (!calibrated) {
-          Serial.println("Unable to update. Drivetrain is not calibrated");
-          delay(1000);
-          return;
-        }
+      void update(uint16_t stickValueX, uint16_t stickValueY) {
         //Find a way to pass Remote input into the engine (maybe with parameters of update)
         //Handle Turning, set desired PWM for both Motors accordingly 
         // ->both update() methods of the motors should only get their own PWM signal 
@@ -453,9 +450,26 @@ class Drivetrain {
         // If 2x ShiftDown -> ShiftDown 
         // else -> stay in current gear? -> this state is often reached while turning 
         //Pass down to engines, which gear we are in 
+        if (!initialized) {
+          Serial.println("Unable to update. Drivetrain is not initialized");
+          delay(1000);
+          return;
+        }
+        if (!calibrated) {
+          Serial.println("Unable to update. Drivetrain is not calibrated");
+          delay(1000);
+          return;
+        }
+
+        uint16_t val_x = capValue0To1023(stickValueX); 
+        uint16_t val_y = capValue0To1023(stickValueY); 
+        //y >512: diff to 512 mit x-value multiplizieren 
+        //  aus x-wert abhängig von links/rechts 0..1 machen
+        //y rund um 512: neutral steering 
+        //rückwärts analog vorwärts, aber nur erster Gang
 
         //update both transmissions with their respective PWM values and directions
-        Direction direction = Direction::Forward; //placeholder for now, later we will get this from the remote control input
+        auto direction = Direction::Forward; //placeholder for now, later we will get this from the remote control input
         uint16_t leftTransPwm = 0; //placeholder for now, later we will get this from the remote control input
         uint16_t rightTransPwm = 0; //placeholder for now, later we will get this from the remote control input
         leftTrans.update(leftTransPwm, direction);
