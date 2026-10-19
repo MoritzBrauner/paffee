@@ -251,7 +251,7 @@ Eigenes, bereits erprobtes Protokoll. Zu beachten:
 | **WLAN** | Im Fahrbetrieb **aus** (`esp_wifi_stop()`), nur im Pit-Modus bei stehendem Fahrzeug für Konfiguration und OTA. Der ESP32 sendet mit ~20 dBm im selben Band, der nRF24 hört bei −85 dBm — wenige Zentimeter daneben ist das Zudecken, kein Nebeneinander. |
 | Modul | nRF24L01+PA+LNA mit SMA-Antenne, Chip mit echtem Nordic-Marking (Si24R1-Klone haben messbar schlechtere Empfindlichkeit) |
 | Spannung | **Eigener 3,3-V-LDO ≥ 500 mA**, 100 µF Elko + 100 nF direkt an den Modulpins. PA/LNA zieht im Sendemoment > 100 mA; der LDO eines DevKits bricht dabei ein — das ist der klassische „Funk fällt nach 10 Minuten aus"-Fehler. |
-| SPI | Eigener SPI-Host, nicht geteilt. IRQ-Pin verdrahten und nutzen, nicht pollen. |
+| SPI | Eigener SPI-Host, nicht geteilt. IRQ-Pin verdrahten und seinen Pegel auswerten statt das Statusregister per SPI abzufragen; als Pegel, nicht als Flanken-Interrupt (ESP32-Errata, siehe [08](08-esp32-pinbelegung.md)). |
 | Datenrate | 250 kbps für Reichweite (~+3 dB Empfindlichkeit gegenüber 1 Mbps), 1 Mbps wenn Telemetrie per Ack-Payload mitläuft. Bei 2 Mbps mindestens 2 MHz Kanalabstand. |
 | Kanäle | In die WLAN-Lücken: 2404, 2427, 2451, 2476 MHz |
 | Telemetrie | Ack-Payload: Akkuspannung, Gang, Motorströme (nur mit Strommessung), Temperaturen reiten auf der Quittung mit |
