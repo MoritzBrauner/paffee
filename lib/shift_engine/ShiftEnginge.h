@@ -5,6 +5,7 @@
 #include "Timer.h"
 #include <ESP32Encoder.h>
 #include <ESP32Servo.h>
+#include <math.h>
 
 constexpr float GEAR_RATIO_FIRST = 13.0f / 47;
 constexpr float GEAR_RATIO_SECOND = 28.0f / 32;
@@ -12,8 +13,8 @@ constexpr float GEAR_RATIO_SECOND = 28.0f / 32;
 constexpr int SERVO_MIDDLE_US = 1500;
 constexpr int SERVO_TRAVEL_US = 700;
 
-//0...255
-constexpr uint8_t STICK_MIDDLE_TOLERANCE = 50; 
+//Totzone in der Stick-Mitte, Anteil vom Vollausschlag (0.1 = 10 %)
+constexpr float STICK_DEADZONE = 0.1f;
 
 constexpr unsigned long SHIFT_TIMER_INTERVAL = 200; 
 
@@ -73,6 +74,18 @@ enum class Direction {
   Backward,
 };
 
+//Fahrbefehl fuer eine Kette aus einem Wert -1.0 (voll rueckwaerts) .. 1.0 (voll vorwaerts)
+struct TrackCommand {
+  uint16_t pwm;
+  Direction direction;
+
+  explicit TrackCommand(const float value) {
+    const float v = std::clamp(value, -1.0f, 1.0f);
+    pwm = static_cast<uint16_t>(fabsf(v) * 1023 + 0.5f);
+    direction = v < 0 ? Direction::Backward : Direction::Forward;
+  }
+};
+
 struct RotationSpeeds {
   float input = 0;   
   float output = 0; 
@@ -80,10 +93,6 @@ struct RotationSpeeds {
   RotationSpeeds(const float input, const float output) : input(input), output(output) {}
 };
 
-uint16_t capValue0To1023(uint16_t value) {
-  if (value > 1023) return 1023; 
-  return value; 
-}
 class Transmission {
   private:
     bool initialized = false;
@@ -367,6 +376,14 @@ class Drivetrain {
 
       unsigned long revmatchStartMicros = 0;
 
+      //Stick-Rohwert 0..1023 -> -1.0 .. 1.0, Totzone in der Mitte herausgerechnet
+      static float normalizeStick(const uint16_t raw) {
+        const float value = (std::min<uint16_t>(raw, 1023) - 511.5f) / 511.5f;
+        if (fabsf(value) < STICK_DEADZONE) return 0;
+        //Totzone abziehen, damit es am Rand der Totzone bei 0 losgeht statt zu springen
+        return copysignf((fabsf(value) - STICK_DEADZONE) / (1 - STICK_DEADZONE), value);
+      }
+
       Directive getTransMessages() const {
         return Messages(
           leftTrans.getMessage(), 
@@ -461,25 +478,30 @@ class Drivetrain {
           return;
         }
 
-        uint16_t val_x = capValue0To1023(stickValueX); 
-        uint16_t val_y = capValue0To1023(stickValueY); 
-        //y >512: diff to 512 mit x-value multiplizieren 
-        //  aus x-wert abhängig von links/rechts 0..1 machen
-        //y rund um 512: neutral steering 
-        //rückwärts analog vorwärts, aber nur erster Gang
+        const float throttle = normalizeStick(stickValueY);
+        const float steer = normalizeStick(stickValueX);
 
-        //update both transmissions with their respective PWM values and directions
-        auto direction = Direction::Forward; //placeholder for now, later we will get this from the remote control input
-        uint16_t leftTransPwm = 0; //placeholder for now, later we will get this from the remote control input
-        uint16_t rightTransPwm = 0; //placeholder for now, later we will get this from the remote control input
-        leftTrans.update(leftTransPwm, direction);
-        rightTrans.update(rightTransPwm, direction);
+        //Arcade-Mischung: Lenkung auf die eine Kette drauf, von der anderen ab.
+        //Bei Gas = 0 ergibt das automatisch Drehen auf der Stelle (Neutral Steer).
+        const float left = throttle + steer;
+        const float right = throttle - steer;
+        //Geht eine Kette ueber 1, beide gleich runterskalieren -> Verhaeltnis bleibt erhalten
+        const float scale = std::max({1.0f, fabsf(left), fabsf(right)});
+        const TrackCommand leftCmd(left / scale);
+        const TrackCommand rightCmd(right / scale);
+
+        leftTrans.update(leftCmd.pwm, leftCmd.direction);
+        rightTrans.update(rightCmd.pwm, rightCmd.direction);
 
         const Directive directive = getTransMessages();
         if (desiredGear == currentGear) {
           switch (directive) {
           case Directive::ShiftUp: {
-            initializeGearShift(Gear::Second);
+            //Nur hochschalten, wenn beide Ketten vorwaerts laufen:
+            //rueckwaerts nur im ersten Gang, beim Drehen auf der Stelle wird nicht geschaltet
+            if (leftCmd.direction == Direction::Forward && rightCmd.direction == Direction::Forward) {
+              initializeGearShift(Gear::Second);
+            }
           }
           break;
           case Directive::ShiftDown: {
