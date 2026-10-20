@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <ESP32Encoder.h>
-
+#include <pins.h>
 // Testprogramm fuer einen JGB37-520 Encoder.
 //
 //   pio run -e test_encoder -t upload -t monitor
@@ -12,8 +12,8 @@
 //   M1/M2 bleiben unangeschlossen.
 
 // Beides normale GPIOs, keine Strapping-Pins, interner Pull-up vorhanden.
-constexpr int PIN_C1 = 32;
-constexpr int PIN_C2 = 33;
+constexpr int PIN_C1 = PIN_HALLSENSOR_1_LEFT;
+constexpr int PIN_C2 = PIN_HALLSENSOR_2_LEFT;
 
 // ACHTUNG: Platzhalter. Rechnerisch 11 Impulse x 4 (Vollquadratur) x Untersetzung,
 // aber die Untersetzung weicht bei diesen Motoren gern von der Katalogangabe ab.
