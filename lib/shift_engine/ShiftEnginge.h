@@ -26,6 +26,11 @@ constexpr unsigned long MAX_REVMATCH_TIMEOUT_MICROS = 2000UL * 1000;
 
 constexpr float CALIBRATION_MIN_RPM_AT_PWM_1000 = 500.0f;
 
+constexpr uint16_t THRESHOLD_RPM_UPSHIFT = 300; 
+constexpr uint16_t THRESHOLD_RPM_DOWNSHIFT = 250; 
+
+constexpr unsigned long MIN_SHIFT_TIMEOUT_MILLIS = 2000; 
+
 enum class Message {
   Happy,
   RequestingShiftUp,
@@ -323,7 +328,7 @@ class Transmission {
           //  if not -> set Message to RequestingShiftUp or RequestingShiftDown
           switch (currentGear) {
             case Gear::First: {
-              if (rpms.output > 400) {
+              if (rpms.output > THRESHOLD_RPM_UPSHIFT) {
                 message = Message::RequestingShiftUp;
               } else {
                 message = Message::Happy; 
@@ -331,7 +336,7 @@ class Transmission {
             }
             break;
             case Gear::Second: {
-              if (rpms.output <= 350) {
+              if (rpms.output <= THRESHOLD_RPM_DOWNSHIFT) {
                 message = Message::RequestingShiftDown;
               } else {
                 message = Message::Happy; 
@@ -376,6 +381,8 @@ class Drivetrain {
 
       unsigned long revmatchStartMicros = 0;
 
+      unsigned long lastShiftMillis = 0; 
+
       //Stick-Rohwert 0..1023 -> -1.0 .. 1.0, Totzone in der Mitte herausgerechnet
       static float normalizeStick(const uint16_t raw) {
         const float value = (std::min<uint16_t>(raw, 1023) - 511.5f) / 511.5f;
@@ -410,6 +417,7 @@ class Drivetrain {
       
       //Calibrate both transesesees
       void calibrate() {
+        bool calibrationWasFaulty = false; 
         if (!initialized) {
           Serial.println("Unable to calibrate. ShiftEnginge ist not initialized");
           return;
@@ -419,12 +427,16 @@ class Drivetrain {
         delay(500);
         Serial.println("Left Transmission..");
         if(!leftTrans.calibrate()) {
-          Serial.println("Left Transmission calibration failed. Aborting Drivetrain calibration.");
-          return; 
+          Serial.println("Left Transmission calibration failed.");
+          calibrationWasFaulty = true; 
         } 
         Serial.println("Right Transmission..");
         if(!rightTrans.calibrate()) {
-          Serial.println("Right Transmission calibration failed. Aborting Drivetrain calibration.");
+          Serial.println("Right Transmission calibration failed");
+          calibrationWasFaulty = true; 
+        }
+        if(calibrationWasFaulty) {
+          Serial.println("Aborting Calibration.");
           return; 
         }
         delay(500);
@@ -454,6 +466,7 @@ class Drivetrain {
         rightTrans.setCurrentGear(gear);
         leftTrans.setMode(Mode::Drive);
         rightTrans.setMode(Mode::Drive); 
+        lastShiftMillis = millis(); 
       }
 
       void update(uint16_t stickValueX, uint16_t stickValueY) {
@@ -495,20 +508,22 @@ class Drivetrain {
 
         const Directive directive = getTransMessages();
         if (desiredGear == currentGear) {
-          switch (directive) {
-          case Directive::ShiftUp: {
-            //Nur hochschalten, wenn beide Ketten vorwaerts laufen:
-            //rueckwaerts nur im ersten Gang, beim Drehen auf der Stelle wird nicht geschaltet
-            if (leftCmd.direction == Direction::Forward && rightCmd.direction == Direction::Forward) {
-              initializeGearShift(Gear::Second);
+          if (millis() - lastShiftMillis >= MIN_SHIFT_TIMEOUT_MILLIS) {
+            switch (directive) {
+            case Directive::ShiftUp: {
+              //Nur hochschalten, wenn beide Ketten vorwaerts laufen:
+              //rueckwaerts nur im ersten Gang, beim Drehen auf der Stelle wird nicht geschaltet
+              if (leftCmd.direction == Direction::Forward && rightCmd.direction == Direction::Forward) {
+                initializeGearShift(Gear::Second);
+              }
             }
-          }
-          break;
-          case Directive::ShiftDown: {
-            initializeGearShift(Gear::First);
-          }
-          break;
-            default: ;
+            break;
+            case Directive::ShiftDown: {
+              initializeGearShift(Gear::First);
+            }
+            break;
+              default: ;
+            }
           }
           //leftTrans.setMode(Mode::Shift);
           //rightTrans.setMode(Mode::Shift);
