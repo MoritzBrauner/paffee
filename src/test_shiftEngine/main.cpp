@@ -15,6 +15,7 @@ Drivetrain drivetrain(leftTrans, rightTrans, PIN_SHIFT_SERVO);
 //Pin 36, eigentlich Akkuspannung, aber für den Test i.O. 
 constexpr uint8_t PIN_POTI = 36; 
 
+uint16_t getPotiValue();
 void setup() {
     Serial.begin(115200); 
     Serial.println("Setup - Start");
