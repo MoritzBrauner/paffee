@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <ESP32Encoder.h>
 #include <Timer.h>
+#include "pins.h"
 
 constexpr float GEAR_RATIO_FIRST = 13.0f / 47;
 constexpr float GEAR_RATIO_SECOND = 28.0f / 32;
@@ -17,11 +18,11 @@ constexpr uint16_t MOTOR_PWM_FREQUENCY = 20000;
 //  14     Gang-Schalter    gegen GND, interner Pull-up; offen = 1. Gang, geschlossen = 2. Gang
 //Diese Pins sind nur fuer den Pruefstand. Die finale Belegung steht in doku/08-esp32-pinbelegung.md, dort
 //auch, wie der Pruefstand zum Getriebe rechts wird.
-constexpr uint8_t PIN_HALL_SENSOR_1 = 32;
-constexpr uint8_t PIN_HALL_SENSOR_2 = 33;
-constexpr uint8_t PIN_MOTOR_PWM = 25;
-constexpr uint8_t PIN_MOTOR_DIRECTION = 26;
-constexpr uint8_t PIN_PHOTOELECTRIC_SENSOR = 27;
+constexpr uint8_t PIN_HALL_SENSOR_1 = PIN_HALLSENSOR_1_LEFT;
+constexpr uint8_t PIN_HALL_SENSOR_2 = PIN_HALLSENSOR_2_LEFT;
+constexpr uint8_t PIN_MOTOR_PWM = PIN_MOTOR_PWM_LEFT;
+constexpr uint8_t PIN_MOTOR_DIRECTION = PIN_MOTOR_DIRECTION_LEFT;
+constexpr uint8_t PIN_PHOTOELECTRIC_SENSOR = PIN_PHOTOSENSOR_LEFT;
 constexpr uint8_t PIN_GEAR_INPUT = 14;
 
 constexpr uint16_t CALIBRATION_SAMPLE_INTERVAL_MS = 100;
