@@ -349,10 +349,10 @@ class Transmission {
           //ignore Remote Control Input, just RevMatch the output RPM to the targetGearRatio
           //look at output rpm, calculate the target input rpm by multiplying with the targetGearRatio
           //if rpm is below target -> write full throttle, if above target -> write 0 throttle
-          float targetInputRpm = rpms.output * (1/targetRatio);
+          float targetInputRpm = fabsf(rpms.output) * (1/targetRatio);
           if (targetInputRpm < 0) targetInputRpm = 0;
           uint16_t pwm = 0; 
-          if (rpms.input < targetInputRpm) {
+          if (fabsf(rpms.input) < targetInputRpm) {
             pwm = 1023;
           }
           write(pwm, direction); 
