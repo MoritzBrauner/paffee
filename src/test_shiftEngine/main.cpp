@@ -18,6 +18,8 @@ constexpr uint8_t PIN_POTI = 36;
 uint16_t getPotiValue();
 void setup() {
     Serial.begin(115200); 
+    Serial.println();
+    Serial.println("Program: Shiftengine Test");     
     Serial.println("Setup - Start");
 
     drivetrain.init(); 
@@ -28,8 +30,8 @@ void setup() {
     Serial.println("Setup - End"); 
 
     while (getPotiValue() >= 563) { 
-      Serial.println("Plt set poti to 0.");  
-      delay(100);
+      Serial.println("Plz set poti to 0.");  
+      delay(1000);
     }
 }
 
