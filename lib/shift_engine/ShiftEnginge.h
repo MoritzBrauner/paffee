@@ -345,42 +345,54 @@ class Transmission {
             break;
             default: ;
           } 
-        } else {
-          //ignore Remote Control Input, just RevMatch the output RPM to the targetGearRatio
-          //look at output rpm, calculate the target input rpm by multiplying with the targetGearRatio
-          //if rpm is below target -> write full throttle, if above target -> write 0 throttle
-          float targetInputRpm = fabsf(rpms.output) * (1/targetRatio);
-          if (targetInputRpm < 0) targetInputRpm = 0;
-          uint16_t pwm = 0; 
-          if (fabsf(rpms.input) < targetInputRpm) {
-            pwm = 1023;
-          }
-          write(pwm, direction); 
-          //const float targetPwm = getTargetPwmByRpm(rpms.output * (1/targetRatio));
-          //write(targetPwm, direction);
-          const bool rpmDifferenceIsTolerable =
-            fabsf(rpms.input) >= rpms.output * (1/targetRatio) - REVMATCH_TOLERANCE_RPM &&
-            fabsf(rpms.input) <= rpms.output * (1/targetRatio) + REVMATCH_TOLERANCE_RPM;
-          if (rpmDifferenceIsTolerable) {
-            message = Message::RevMatchCompleted; 
-          } else {
-            message = Message::Happy; 
-          }
-        } 
-        // } else {      
-        //   const float targetPwm = getTargetPwmByRpm(rpms.output * (1/targetRatio));
-        //   write(targetPwm, direction);
-        //   if (mode == Mode::RevMatch) {
-        //     const bool rpmDifferenceIsTolerable =
-        //       fabsf(rpms.input) >= rpms.output * (1/targetRatio) - REVMATCH_TOLERANCE_RPM &&
-        //       fabsf(rpms.input) <= rpms.output * (1/targetRatio) + REVMATCH_TOLERANCE_RPM;
-        //     if (rpmDifferenceIsTolerable) {
-        //       message = Message::RevMatchCompleted; 
-        //     } else {
-        //       message = Message::Happy; 
-        //     }
+        // } else {
+        //   //ignore Remote Control Input, just RevMatch the output RPM to the targetGearRatio
+        //   //look at output rpm, calculate the target input rpm by multiplying with the targetGearRatio
+        //   //if rpm is below target -> write full throttle, if above target -> write 0 throttle
+        //   float targetInputRpm = fabsf(rpms.output) * (1/targetRatio);
+        //   if (targetInputRpm < 0) targetInputRpm = 0;
+        //   uint16_t pwm = 0; 
+        //   if (fabsf(rpms.input) < targetInputRpm) {
+        //     pwm = 1023;
+        //   }
+        //   write(pwm, direction); 
+        //   //const float targetPwm = getTargetPwmByRpm(rpms.output * (1/targetRatio));
+        //   //write(targetPwm, direction);
+        //   const bool rpmDifferenceIsTolerable =
+        //     fabsf(rpms.input) >= rpms.output * (1/targetRatio) - REVMATCH_TOLERANCE_RPM &&
+        //     fabsf(rpms.input) <= rpms.output * (1/targetRatio) + REVMATCH_TOLERANCE_RPM;
+        //   if (rpmDifferenceIsTolerable) {
+        //     message = Message::RevMatchCompleted; 
+        //   } else {
+        //     message = Message::Happy; 
         //   }
         // } 
+        } else {      
+          const float targetInputRpm = rpms.output * (1/targetRatio); 
+          float targetPwm = getTargetPwmByRpm(targetInputRpm); 
+          constexpr uint8_t RPM_DIFF_COMPENSATION_KICKOFF_RPM = 80;
+          const bool inputRpmIsBelowThreshold = fabsf(rpms.input) <= targetInputRpm - RPM_DIFF_COMPENSATION_KICKOFF_RPM; 
+          const bool inputRpmIsAboveThreshold = fabsf(rpms.input) >= targetInputRpm + RPM_DIFF_COMPENSATION_KICKOFF_RPM; 
+          //if rpm is under a threshold: write max speed, 
+          //if below: brake
+          //else write pwm as calibrated 
+          if (inputRpmIsBelowThreshold) {
+            targetPwm = 1023;   
+          } else if (inputRpmIsAboveThreshold) {
+            targetPwm = 0; 
+          }
+          write(targetPwm, direction);
+          if (mode == Mode::RevMatch) {
+            const bool rpmDifferenceIsTolerable =
+              fabsf(rpms.input) >= targetInputRpm - REVMATCH_TOLERANCE_RPM &&
+              fabsf(rpms.input) <= targetInputRpm + REVMATCH_TOLERANCE_RPM;
+            if (rpmDifferenceIsTolerable) {
+              message = Message::RevMatchCompleted; 
+            } else {
+              message = Message::Happy; 
+            }
+          }
+        } 
     }
 }; 
 
