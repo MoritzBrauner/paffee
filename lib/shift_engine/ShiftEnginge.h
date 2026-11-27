@@ -31,6 +31,8 @@ constexpr uint16_t THRESHOLD_RPM_DOWNSHIFT = 250;
 
 constexpr unsigned long MIN_SHIFT_TIMEOUT_MILLIS = 2000; 
 
+constexpr uint8_t INPUT_SAMPLES = 64; 
+
 enum class Message {
   Happy,
   RequestingShiftUp,
@@ -98,6 +100,11 @@ struct RotationSpeeds {
   RotationSpeeds(const float input, const float output) : input(input), output(output) {}
 };
 
+struct InputSample {
+  int64_t count = 0;
+  unsigned long micros = 0;
+};
+
 class Transmission {
   private:
     bool initialized = false;
@@ -134,6 +141,37 @@ class Transmission {
     ESP32Encoder encoder; 
     int64_t lastCount = 0; 
     float lastMeasuredInputRpm = 0; 
+
+    InputSample inputSamples[INPUT_SAMPLES];
+    uint8_t inputHead = 0;
+
+    void sampleInput() {
+      const unsigned long microsNow = micros();
+      if (microsNow - inputSamples[inputHead].micros < 1000) return; 
+      inputHead = (inputHead + 1) % INPUT_SAMPLES; 
+
+      inputSamples[inputHead].micros = microsNow;
+      inputSamples[inputHead].count = encoder.getCount();
+    }
+
+    float getInputRpm(const unsigned long windowMicros) {
+      const InputSample& newest = inputSamples[inputHead];
+      for (uint8_t i = 1; i < INPUT_SAMPLES; i++) {
+        const InputSample& older = inputSamples[(inputHead + INPUT_SAMPLES - i) % INPUT_SAMPLES];
+        const unsigned long deltaMicros = newest.micros - older.micros;
+        if (deltaMicros >= windowMicros) {
+          return (newest.count - older.count) * 60000000.0f / (deltaMicros * countsPerRev);
+        }
+      }
+      return 0; 
+    }
+
+    void resetInputSamples() {
+      const InputSample now = {encoder.getCount(), micros()};
+      for (InputSample& sample : inputSamples) {
+        sample = now; 
+      }
+    }
     
     void write(const uint16_t pwm, const Direction direction) const {
       //Wir nehmen PWM-Werte von 0..1023 
@@ -246,6 +284,7 @@ class Transmission {
           }
         }
         Serial.println("Sanity Check passed. Transmission is calibrated.");
+        resetInputSamples(); 
         this->calibrated = true;
         return true;
     }
@@ -271,6 +310,8 @@ class Transmission {
     }
 
     RotationSpeeds getRotationalSpeeds() {
+      sampleInput(); 
+
       //input
       if (hallTimer.fires()) {
         const int64_t now =  encoder.getCount();
@@ -368,11 +409,13 @@ class Transmission {
         //   }
         // } 
         } else {      
+          const float inputRpm = fabsf(getInputRpm(10UL * 1000)); 
+
           const float targetInputRpm = rpms.output * (1/targetRatio); 
           float targetPwm = getTargetPwmByRpm(targetInputRpm); 
           constexpr uint8_t RPM_DIFF_COMPENSATION_KICKOFF_RPM = 80;
-          const bool inputRpmIsBelowThreshold = fabsf(rpms.input) <= targetInputRpm - RPM_DIFF_COMPENSATION_KICKOFF_RPM; 
-          const bool inputRpmIsAboveThreshold = fabsf(rpms.input) >= targetInputRpm + RPM_DIFF_COMPENSATION_KICKOFF_RPM; 
+          const bool inputRpmIsBelowThreshold = inputRpm <= targetInputRpm - RPM_DIFF_COMPENSATION_KICKOFF_RPM; 
+          const bool inputRpmIsAboveThreshold = inputRpm >= targetInputRpm + RPM_DIFF_COMPENSATION_KICKOFF_RPM; 
           //if rpm is under a threshold: write max speed, 
           //if below: brake
           //else write pwm as calibrated 
@@ -384,8 +427,8 @@ class Transmission {
           write(targetPwm, direction);
           if (mode == Mode::RevMatch) {
             const bool rpmDifferenceIsTolerable =
-              fabsf(rpms.input) >= targetInputRpm - REVMATCH_TOLERANCE_RPM &&
-              fabsf(rpms.input) <= targetInputRpm + REVMATCH_TOLERANCE_RPM;
+              inputRpm >= targetInputRpm - REVMATCH_TOLERANCE_RPM &&
+              inputRpm <= targetInputRpm + REVMATCH_TOLERANCE_RPM;
             if (rpmDifferenceIsTolerable) {
               message = Message::RevMatchCompleted; 
             } else {
